@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AQUA Dashboard Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            background: #0f172a; 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; margin: 0; 
+        }
+        .glass { 
+            background: rgba(255, 255, 255, 0.05); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+    </style>
+</head>
+<body>
+    <div class="glass p-8 rounded-2xl shadow-2xl w-96 text-center">
+        <h1 class="text-2xl font-bold mb-6 text-blue-400">💧 AQUA Command Center</h1>
+        {% if error %}
+            <p class="text-red-400 mb-4">{{ error }}</p>
+        {% endif %}
+        <form method="POST" action="/login">
+            <input type="password" name="password" placeholder="Nhập mật khẩu..." required 
+                class="w-full px-4 py-3 rounded-lg bg-gray-800 border border-gray-700 
+                text-white focus:outline-none focus:border-blue-500 mb-4 transition">
+            <button type="submit" 
+                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold 
+                py-3 px-4 rounded-lg transition duration-200 shadow-lg shadow-blue-500/30">
+                Đăng Nhập
+            </button>
+        </form>
+    </div>
+</body>
+</html>

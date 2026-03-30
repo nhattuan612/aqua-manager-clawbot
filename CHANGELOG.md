@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-03-30
 
 Post-`v0.1.0` hardening and portability updates.
 
@@ -12,6 +12,8 @@ Highlights:
 - added `FIRST_RUN.md` and clarified long-term upgrade steps
 - kept the default login password aligned with the requested first-run baseline
 - made OpenClaw helper output derive from current host or `.env` instead of one hardcoded VPS
+
+## Unreleased
 
 ## 0.1.0 - 2026-03-30
 

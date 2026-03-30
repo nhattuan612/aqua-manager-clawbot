@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Keep release/source archives small and reproducible when GitHub/GitLab create
+# auto-generated source bundles from tags.
+dist export-ignore
+.venv export-ignore
+.env export-ignore
+.update-snapshots export-ignore
+.aqua-manager-snapshots export-ignore
+.DS_Store export-ignore

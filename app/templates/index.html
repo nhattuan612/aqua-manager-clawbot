@@ -1,0 +1,3322 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AQUA Command Center</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary: oklch(74.703% 0.158 39.947);
+  --primary-content: oklch(14.9% 0.031 39.95);
+  --secondary: oklch(72.537% 0.177 2.72);
+  --secondary-content: oklch(14.5% 0.035 2.72);
+  --accent: oklch(71.294% 0.166 299.844);
+  --accent-content: oklch(14.3% 0.033 299.844);
+  --neutral: oklch(26% 0.019 237.69);
+  --neutral-content: oklch(70% 0.019 237.69);
+  --base-100: oklch(22% 0.019 237.69);
+  --base-200: oklch(20% 0.019 237.69);
+  --base-300: oklch(18% 0.019 237.69);
+  --base-content: oklch(77.4% 0.043 245.1);
+  --info: oklch(85.559% 0.085 206.015);
+  --info-content: oklch(17.1% 0.017 206.0);
+  --success: oklch(85.56% 0.085 144.778);
+  --success-content: oklch(17.1% 0.017 144.8);
+  --warning: oklch(85.569% 0.084 74.427);
+  --warning-content: oklch(17.1% 0.016 74.4);
+  --error: oklch(85.511% 0.078 16.886);
+  --error-content: oklch(17.1% 0.015 16.9);
+  --text-strong: color-mix(in oklch, white 28%, var(--base-content) 72%);
+  --text-soft: color-mix(in oklch, var(--base-content) 66%, var(--neutral-content) 34%);
+  --text-muted: color-mix(in oklch, var(--base-content) 42%, var(--base-100) 58%);
+  --line: color-mix(in oklch, var(--neutral) 72%, white 28%);
+  --line-soft: color-mix(in oklch, var(--neutral) 84%, var(--base-200) 16%);
+  --panel-bg: linear-gradient(180deg,color-mix(in oklch,var(--base-200) 88%, black 12%),color-mix(in oklch,var(--base-100) 72%, black 28%));
+  --card-bg: linear-gradient(180deg,color-mix(in oklch,var(--neutral) 78%, var(--base-200) 22%),color-mix(in oklch,var(--base-200) 68%, black 32%));
+  --chip-bg: linear-gradient(180deg,color-mix(in oklch,var(--neutral) 86%, var(--base-300) 14%),color-mix(in oklch,var(--base-200) 72%, black 28%));
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--base-100);color:var(--base-content);font-family:'Inter',sans-serif;font-size:12px;line-height:1.35;}
+.page{max-width:1880px;margin:0 auto;padding:14px 16px 18px;}
+.topbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.brand{display:flex;align-items:flex-start;gap:10px;}
+.brand h1{font-size:22px;line-height:1;margin:0;font-weight:800;color:#f8fafc;letter-spacing:.02em;}
+.brand p{margin:4px 0 0;color:#64748b;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.stats{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.stat-chip,.chip,.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid #1e293b;background:#0f172a;color:#cbd5e1;padding:4px 8px;border-radius:6px;white-space:nowrap;}
+.stat-chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:180px;padding:7px 9px;}
+.stat-chip strong{color:#f8fafc;}
+.stat-chip .head{display:flex;align-items:center;gap:6px;font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;}
+.stat-chip .main{font-size:14px;font-weight:800;color:#f8fafc;line-height:1.1;}
+.stat-chip .sub{font-size:10px;color:#64748b;line-height:1.25;}
+.logout{display:inline-flex;align-items:center;gap:6px;border:1px solid #3f3f46;background:#18181b;color:#fca5a5;padding:6px 10px;border-radius:6px;text-decoration:none;font-weight:600;}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.search{flex:1 1 360px;min-width:240px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px;padding:8px 10px;font-size:12px;}
+.search:focus{outline:none;border-color:#64748b;}
+.action-row{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #334155;background:#111827;color:#e2e8f0;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;}
+.btn:hover{background:#1f2937;}
+.btn-primary{border-color:#1d4ed8;color:#bfdbfe;background:#0f172a;}
+.btn-danger{border-color:#7f1d1d;color:#fecaca;background:#170b0b;}
+.tabs{display:flex;gap:8px;overflow:auto;border-bottom:1px solid #1e293b;padding-bottom:8px;margin-bottom:12px;}
+.tab-btn{border:1px solid #23324a;background:linear-gradient(180deg,#0d1728,#08111f);color:#a5b4cc;padding:10px 16px;border-radius:7px;font-size:12.5px;font-weight:800;letter-spacing:.03em;cursor:pointer;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+.tab-btn.active{color:#f8fafc;}
+.tab-missions.active{background:linear-gradient(135deg,#1e3a8a,#172554);border-color:#3b82f6;}
+.tab-tokens.active{background:linear-gradient(135deg,#374151,#1f2937);border-color:#94a3b8;}
+.tab-dashboard.active{background:linear-gradient(135deg,#0f766e,#164e63);border-color:#22d3ee;}
+.tab-reminders.active{background:linear-gradient(135deg,#7f1d1d,#3f1d1d);border-color:#f87171;}
+.tab-knowledge.active{background:linear-gradient(135deg,#0f766e,#183344);border-color:#2dd4bf;}
+.tab-skills.active{background:linear-gradient(135deg,#6d28d9,#3b0764);border-color:#c084fc;}
+.tab-git.active{background:linear-gradient(135deg,#2563eb,#1e3a8a);border-color:#60a5fa;}
+.tab-backup.active{background:linear-gradient(135deg,#4d7c0f,#365314);border-color:#a3e635;}
+.panel{border:1px solid #1e293b;background:#07111f;border-radius:6px;padding:10px;}
+.panel + .panel{margin-top:10px;}
+.panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.panel-head h2{margin:0;font-size:13px;font-weight:700;color:#f8fafc;}
+.panel-head p{margin:2px 0 0;color:#64748b;font-size:11px;}
+.dense-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:6px;margin-bottom:8px;}
+.dense-stat{border:1px solid #23324a;background:radial-gradient(circle at top right,rgba(56,189,248,.10),transparent 38%),linear-gradient(180deg,#162338,#101a2a);border-radius:6px;padding:7px 8px;}
+.dense-stat .label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;}
+.dense-stat .value{margin-top:2px;font-size:14px;font-weight:700;color:#f8fafc;}
+.dense-stat .sub{margin-top:2px;font-size:10px;color:#64748b;}
+.group-strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.group-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid #23324a;background:linear-gradient(180deg,#16253a,#122035);border-radius:6px;color:#d5e0ef;font-size:11px;}
+.controls-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;width:100%;}
+.controls-spacer{flex:1 1 auto;}
+.control-label{display:flex;flex-direction:column;gap:4px;font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.06em;}
+.control-select{border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px;padding:6px 8px;font-size:11px;min-width:150px;}
+.table-shell{border:1px solid #23324a;background:#0d1829;border-radius:6px;overflow:auto;}
+.dense-table{width:100%;border-collapse:collapse;min-width:980px;}
+.dense-table th{position:sticky;top:0;background:#0b1220;color:#94a3b8;font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;padding:7px 8px;border-bottom:1px solid #1e293b;text-align:left;white-space:nowrap;z-index:1;}
+.dense-table td{padding:6px 8px;border-bottom:1px solid rgba(30,41,59,.85);vertical-align:top;color:#cbd5e1;font-size:11px;}
+.dense-table tr:hover td{background:rgba(30,41,59,.28);}
+.dense-table tr.search-hidden{display:none;}
+.search-hidden{display:none!important;}
+.dense-table th.sortable{cursor:pointer;}
+.dense-table th.sortable:hover{color:#f8fafc;background:#111827;}
+.mono{font-family:'JetBrains Mono',monospace;font-size:10.5px;}
+.muted{color:#64748b;}
+.tiny{font-size:10px;}
+.nowrap{white-space:nowrap;}
+.break{word-break:break-word;}
+.truncate-1,.truncate-2{display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;}
+.truncate-1{-webkit-line-clamp:1;}
+.truncate-2{-webkit-line-clamp:2;}
+.name-cell{display:flex;flex-direction:column;gap:2px;min-width:140px;}
+.name-main{font-weight:800;color:#f8fafc;font-size:11px;}
+.name-sub{font-size:10px;color:#64748b;}
+.badge{font-size:10px;font-weight:700;padding:2px 7px;}
+.b-status-online,.b-status-active,.b-status-ok{color:#86efac;border-color:#14532d;background:#052e16;}
+.b-status-warning,.b-status-pending{color:#fde68a;border-color:#854d0e;background:#422006;}
+.b-status-expired,.b-status-offline,.b-status-error,.b-status-done{color:#fca5a5;border-color:#7f1d1d;background:#450a0a;}
+.b-priority-critical{color:#fecaca;border-color:#7f1d1d;background:#450a0a;}
+.b-priority-high{color:#fdba74;border-color:#9a3412;background:#431407;}
+.b-priority-medium{color:#bfdbfe;border-color:#1d4ed8;background:#172554;}
+.b-priority-low{color:#c4b5fd;border-color:#5b21b6;background:#2e1065;}
+.b-kind{color:#cbd5e1;border-color:#334155;background:#111827;}
+.tag{display:inline-flex;align-items:center;padding:2px 6px;border:1px solid #334155;border-radius:5px;background:linear-gradient(180deg,#22324a,#1a2638);color:#d6dfec;font-size:10px;margin:0 4px 4px 0;}
+.actions{display:flex;gap:6px;flex-wrap:wrap;}
+.mini-btn{display:inline-flex;align-items:center;gap:4px;border:1px solid #334155;background:#111827;color:#e2e8f0;border-radius:5px;padding:3px 6px;font-size:10px;font-weight:700;cursor:pointer;text-decoration:none;}
+.mini-btn:hover{background:#1f2937;}
+.mini-danger{border-color:#7f1d1d;color:#fecaca;background:#170b0b;}
+.mini-primary{border-color:#1d4ed8;color:#bfdbfe;background:#0f172a;}
+.section-title{font-size:11px;font-weight:700;color:#f8fafc;margin:12px 0 6px;}
+.empty{padding:24px 12px;text-align:center;color:#64748b;}
+.status-dot{width:7px;height:7px;border-radius:999px;display:inline-block;background:#475569;}
+.dot-online{background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,.15);}
+.dot-warning{background:#f59e0b;box-shadow:0 0 0 2px rgba(245,158,11,.15);}
+.dot-error{background:#ef4444;box-shadow:0 0 0 2px rgba(239,68,68,.15);}
+.restore-input{width:100%;border:1px solid #334155;background:#0f172a;color:#cbd5e1;border-radius:6px;padding:5px 6px;font-size:10px;}
+.restore-input::file-selector-button{border:0;background:#1e293b;color:#cbd5e1;padding:5px 8px;border-radius:5px;margin-right:8px;}
+.iframe-wrap{border:1px solid #23324a;border-radius:6px;overflow:hidden;background:#000;}
+iframe{width:100%;height:calc(100vh - 235px);min-height:620px;border:0;background:#fff;}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px;}
+.card-grid-tight{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;}
+.card-grid-six{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;}
+.dense-card{position:relative;overflow:hidden;border:1px solid #2b3d58;background:radial-gradient(circle at top right,rgba(125,211,252,.05),transparent 34%),radial-gradient(circle at bottom left,rgba(192,132,252,.04),transparent 26%),linear-gradient(180deg,#18263a,#121b2a);border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:7px;min-height:150px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03);}
+.dense-card:hover{border-color:#6b8eb6;background:radial-gradient(circle at top right,rgba(125,211,252,.08),transparent 36%),radial-gradient(circle at bottom left,rgba(192,132,252,.06),transparent 28%),linear-gradient(180deg,#1c2b41,#152032);}
+.card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;}
+.card-title{font-size:12px;font-weight:800;color:#f8fafc;line-height:1.2;}
+.name-accent{font-weight:900;color:#fb923c;text-shadow:none;}
+.card-sub{font-size:10px;color:#64748b;word-break:break-word;}
+.card-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;}
+.card-meta.compact{grid-template-columns:repeat(4,minmax(0,1fr));}
+.meta-box{border:1px solid #26374f;background:linear-gradient(180deg,#152338,#0f1a2b);border-radius:6px;padding:5px 6px;}
+.meta-box .k{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.05em;}
+.meta-box .v{margin-top:2px;font-size:11px;color:#e2e8f0;}
+.tag-row{display:flex;flex-wrap:wrap;gap:4px;}
+.field-row{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;}
+.field-col{min-width:0;flex:1;}
+.field-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;}
+.field-value{margin-top:2px;font-size:10.5px;color:#cbd5e1;}
+.meter{height:7px;border-radius:999px;background:#0f172a;border:1px solid #1e293b;overflow:hidden;}
+.meter > span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#22c55e,#84cc16);}
+.meter.warn > span{background:linear-gradient(90deg,#f59e0b,#facc15);}
+.meter.danger > span{background:linear-gradient(90deg,#ef4444,#f97316);}
+.stack-box{border:1px solid #23324a;background:linear-gradient(180deg,#19304d,#132033);border-radius:6px;padding:8px;}
+.cmd-box{border:1px solid #2b3d58;background:radial-gradient(circle at top right,rgba(45,212,191,.10),transparent 34%),linear-gradient(180deg,#18304d,#132033);border-radius:6px;padding:8px;}
+.cmd-box pre{margin:0;font-size:11px;color:#cbd5e1;font-family:'JetBrains Mono',monospace;white-space:pre-wrap;word-break:break-word;}
+.cmd-box details{margin-top:8px;}
+.cmd-box details summary{cursor:pointer;list-style:none;color:#dbe6f5;font-size:11px;font-weight:700;}
+.cmd-box details summary::-webkit-details-marker{display:none;}
+.cmd-box .compact-pre{max-height:220px;overflow:auto;border:1px solid rgba(122,140,170,.22);border-radius:6px;padding:8px;background:rgba(8,13,22,.32);}
+.route-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;}
+.route-item{border:1px solid #23324a;background:linear-gradient(180deg,#19304d,#132033);border-radius:6px;padding:8px;}
+.route-item .title{font-size:11px;font-weight:700;color:#f8fafc;}
+.route-item .desc{font-size:10px;color:#64748b;margin-top:3px;}
+.log-snippet{margin:0;font-size:9.5px;line-height:1.35;color:#d8e3f0;font-family:'JetBrains Mono',monospace;white-space:pre-wrap;word-break:break-word;}
+.log-list{display:flex;flex-direction:column;gap:8px;}
+details.log-row{border:1px solid #23324a;background:linear-gradient(180deg,#132033,#101a2a);border-radius:6px;overflow:hidden;}
+details.log-row > summary{cursor:pointer;list-style:none;padding:8px 10px;background:linear-gradient(180deg,#192b42,#13253b);display:grid;grid-template-columns:minmax(160px,220px) minmax(100px,130px) minmax(120px,160px) 1fr auto;gap:8px;align-items:center;color:#f8fafc;font-size:11px;font-weight:700;}
+details.log-row > summary::-webkit-details-marker{display:none;}
+details.log-row[open] > summary{border-bottom:1px solid #23324a;}
+.log-col-title{display:flex;align-items:center;gap:6px;min-width:0;}
+.log-col-sub{font-size:10px;color:#94a3b8;min-width:0;}
+.log-col-main{min-width:0;color:#cbd5e1;font-size:10.5px;}
+.log-body{padding:8px 10px;background:#0f1827;}
+.log-actions{display:flex;gap:6px;align-items:center;justify-content:flex-end;}
+details.group-section{border:1px solid #23324a;background:linear-gradient(180deg,#132033,#101a2a);border-radius:6px;margin-bottom:8px;overflow:hidden;}
+details.group-section > summary{cursor:pointer;list-style:none;padding:8px 10px;background:linear-gradient(180deg,#1a2a42,#162338);color:#f8fafc;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+details.group-section > summary::-webkit-details-marker{display:none;}
+details.group-section[open] > summary{border-bottom:1px solid #1e293b;}
+details.group-section .group-body{padding:8px;}
+.tone-sky{border-color:#294764!important;background:radial-gradient(circle at top right,rgba(125,211,252,.08),transparent 40%),linear-gradient(180deg,#18273c,#111c2d)!important;}
+.tone-cyan{border-color:#215564!important;background:radial-gradient(circle at top right,rgba(103,232,249,.08),transparent 40%),linear-gradient(180deg,#152935,#10212a)!important;}
+.tone-emerald{border-color:#27544a!important;background:radial-gradient(circle at top right,rgba(110,231,183,.08),transparent 40%),linear-gradient(180deg,#182b2a,#111f1f)!important;}
+.tone-violet{border-color:#4a3772!important;background:radial-gradient(circle at top right,rgba(196,181,253,.08),transparent 40%),linear-gradient(180deg,#241f39,#181426)!important;}
+.tone-rose{border-color:#65364b!important;background:radial-gradient(circle at top right,rgba(251,113,133,.08),transparent 40%),linear-gradient(180deg,#2a1c28,#1d141d)!important;}
+.tone-amber{border-color:#6a4a24!important;background:radial-gradient(circle at top right,rgba(251,191,36,.08),transparent 40%),linear-gradient(180deg,#2c2218,#1e1811)!important;}
+.tone-indigo{border-color:#344f86!important;background:radial-gradient(circle at top right,rgba(129,140,248,.08),transparent 40%),linear-gradient(180deg,#1a2340,#12192c)!important;}
+.tone-lime{border-color:#47622a!important;background:radial-gradient(circle at top right,rgba(163,230,53,.08),transparent 40%),linear-gradient(180deg,#202c17,#151d12)!important;}
+.tone-slate{border-color:#435166!important;background:radial-gradient(circle at top right,rgba(148,163,184,.08),transparent 40%),linear-gradient(180deg,#1b2535,#141b28)!important;}
+.dense-card.tone-sky:hover,.dense-card.tone-cyan:hover,.dense-card.tone-emerald:hover,.dense-card.tone-violet:hover,.dense-card.tone-rose:hover,.dense-card.tone-amber:hover,.dense-card.tone-indigo:hover,.dense-card.tone-lime:hover,.dense-card.tone-slate:hover{filter:brightness(1.04);}
+.dense-stat.tone-sky .label,.group-chip.tone-sky,.route-item.tone-sky .desc,.cmd-box.tone-sky .card-sub{color:#bfdbfe;}
+.dense-stat.tone-cyan .label,.group-chip.tone-cyan,.route-item.tone-cyan .desc,.cmd-box.tone-cyan .card-sub{color:#bae6fd;}
+.dense-stat.tone-emerald .label,.group-chip.tone-emerald,.route-item.tone-emerald .desc,.cmd-box.tone-emerald .card-sub{color:#bbf7d0;}
+.dense-stat.tone-violet .label,.group-chip.tone-violet,.route-item.tone-violet .desc,.cmd-box.tone-violet .card-sub{color:#ddd6fe;}
+.dense-stat.tone-rose .label,.group-chip.tone-rose,.route-item.tone-rose .desc,.cmd-box.tone-rose .card-sub{color:#fecdd3;}
+.dense-stat.tone-amber .label,.group-chip.tone-amber,.route-item.tone-amber .desc,.cmd-box.tone-amber .card-sub{color:#fde68a;}
+.dense-stat.tone-indigo .label,.group-chip.tone-indigo,.route-item.tone-indigo .desc,.cmd-box.tone-indigo .card-sub{color:#c7d2fe;}
+.dense-stat.tone-lime .label,.group-chip.tone-lime,.route-item.tone-lime .desc,.cmd-box.tone-lime .card-sub{color:#d9f99d;}
+.dense-stat.tone-slate .label,.group-chip.tone-slate,.route-item.tone-slate .desc,.cmd-box.tone-slate .card-sub{color:#cbd5e1;}
+#tab_overview .panel{background:linear-gradient(180deg,#06111d,#081523);}
+#tab_missions .panel{background:linear-gradient(180deg,#081321,#091725);}
+#tab_skills .panel{background:linear-gradient(180deg,#0b1020,#101529);}
+#tab_reminders .panel{background:linear-gradient(180deg,#130d17,#120f17);}
+#tab_knowledge .panel{background:linear-gradient(180deg,#07141a,#09161b);}
+#tab_git .panel{background:linear-gradient(180deg,#07111d,#0a1523);}
+#tab_backup .panel{background:linear-gradient(180deg,#10160b,#12180d);}
+#tab_tokens .panel{background:linear-gradient(180deg,#0d1218,#0f141a);}
+#tab_telegram .panel{background:linear-gradient(180deg,#0d1020,#11162a);}
+#tab_dashboard .panel{background:linear-gradient(180deg,#07131a,#081821);}
+.brand h1,.panel-head h2,.card-title,.route-item .title,#modal-title{color:var(--text-strong);}
+.brand p,.panel-head p,.muted,.dense-stat .label,.dense-stat .sub,.card-sub,.field-label,.meta-box .k,.log-col-sub,.route-item .desc,.empty,.control-label{color:var(--text-muted);}
+.stat-chip,.chip,.badge,.group-chip,.tag,.mini-btn,.btn,.logout,.search,.control-select,.restore-input,.table-shell,.route-item,.cmd-box,.stack-box,.meta-box,.dense-stat,.dense-card,details.group-section,details.log-row,.panel,.iframe-wrap,.code-box,.json-box,#modal-box,#confirm-box,#modal-head{border-color:var(--line);}
+.panel,.table-shell,.code-box,.json-box,#modal-box,#confirm-box{background:var(--panel-bg);}
+.group-chip,.tag,.mini-btn,.btn,.logout,.search,.control-select,.restore-input{background:var(--chip-bg);color:var(--base-content);}
+.btn:hover,.mini-btn:hover{background:linear-gradient(180deg,color-mix(in oklch,var(--neutral) 96%, var(--primary) 4%),color-mix(in oklch,var(--base-200) 88%, var(--primary) 12%));}
+.btn-primary{border-color:color-mix(in oklch,var(--primary) 54%, var(--line) 46%);background:linear-gradient(180deg,color-mix(in oklch,var(--primary) 34%, var(--base-200) 66%),color-mix(in oklch,var(--primary) 22%, var(--base-300) 78%));color:var(--primary);}
+.btn-danger,.mini-danger,.b-status-expired,.b-status-offline,.b-status-error,.b-status-done,.b-priority-critical{border-color:color-mix(in oklch,var(--error) 42%, var(--line) 58%);background:linear-gradient(180deg,color-mix(in oklch,var(--error) 22%, var(--base-200) 78%),color-mix(in oklch,var(--error) 14%, var(--base-300) 86%));color:var(--error);}
+.tab-btn{border-color:var(--line);background:linear-gradient(180deg,color-mix(in oklch,var(--base-200) 94%, black 6%),color-mix(in oklch,var(--base-300) 82%, black 18%));color:var(--text-soft);box-shadow:inset 0 1px 0 color-mix(in oklch,white 8%, transparent);}
+.tab-btn.active{color:var(--text-strong);}
+.tab-missions.active{background:linear-gradient(135deg,color-mix(in oklch,var(--primary) 36%, var(--base-200) 64%),color-mix(in oklch,var(--primary) 18%, var(--base-300) 82%));border-color:color-mix(in oklch,var(--primary) 52%, var(--line) 48%);}
+.tab-tokens.active{background:linear-gradient(135deg,color-mix(in oklch,var(--neutral) 94%, var(--base-content) 6%),color-mix(in oklch,var(--base-200) 90%, black 10%));border-color:color-mix(in oklch,var(--neutral-content) 34%, var(--line) 66%);}
+.tab-dashboard.active{background:linear-gradient(135deg,color-mix(in oklch,var(--info) 30%, var(--base-200) 70%),color-mix(in oklch,var(--info) 16%, var(--base-300) 84%));border-color:color-mix(in oklch,var(--info) 48%, var(--line) 52%);}
+.tab-reminders.active{background:linear-gradient(135deg,color-mix(in oklch,var(--secondary) 34%, var(--base-200) 66%),color-mix(in oklch,var(--secondary) 18%, var(--base-300) 82%));border-color:color-mix(in oklch,var(--secondary) 52%, var(--line) 48%);}
+.tab-knowledge.active{background:linear-gradient(135deg,color-mix(in oklch,var(--success) 28%, var(--base-200) 72%),color-mix(in oklch,var(--success) 14%, var(--base-300) 86%));border-color:color-mix(in oklch,var(--success) 46%, var(--line) 54%);}
+.tab-skills.active{background:linear-gradient(135deg,color-mix(in oklch,var(--accent) 34%, var(--base-200) 66%),color-mix(in oklch,var(--accent) 18%, var(--base-300) 82%));border-color:color-mix(in oklch,var(--accent) 52%, var(--line) 48%);}
+.tab-git.active{background:linear-gradient(135deg,color-mix(in oklch,var(--info) 24%, var(--base-200) 76%),color-mix(in oklch,var(--accent) 14%, var(--base-300) 86%));border-color:color-mix(in oklch,var(--info) 44%, var(--line) 56%);}
+.tab-backup.active{background:linear-gradient(135deg,color-mix(in oklch,var(--success) 22%, var(--base-200) 78%),color-mix(in oklch,var(--warning) 12%, var(--base-300) 88%));border-color:color-mix(in oklch,var(--success) 42%, var(--line) 58%);}
+.panel{background:var(--panel-bg);}
+.dense-stat,.meta-box,.stack-box,.route-item,.cmd-box,.dense-card,details.group-section,details.log-row{background:var(--card-bg);}
+.dense-stat .value,.meta-box .v,.field-value,.log-col-main,.log-snippet,.json-box pre{color:var(--base-content);}
+.name-main{color:var(--text-strong);}
+.name-accent{font-weight:900;color:var(--primary);text-shadow:none;}
+.dense-table th{background:color-mix(in oklch,var(--base-300) 92%, black 8%);color:var(--text-soft);border-bottom-color:var(--line);}
+.dense-table td{border-bottom-color:color-mix(in oklch,var(--line-soft) 82%, transparent 18%);color:var(--base-content);}
+.dense-table tr:hover td{background:color-mix(in oklch,var(--neutral) 20%, transparent 80%);}
+.dense-table th.sortable:hover{color:var(--text-strong);background:color-mix(in oklch,var(--neutral) 28%, var(--base-300) 72%);}
+.b-status-online,.b-status-active,.b-status-ok{color:var(--success-content);border-color:color-mix(in oklch,var(--success) 46%, var(--line) 54%);background:color-mix(in oklch,var(--success) 76%, transparent 24%);}
+.b-status-warning,.b-status-pending,.b-priority-high{color:var(--warning-content);border-color:color-mix(in oklch,var(--warning) 44%, var(--line) 56%);background:color-mix(in oklch,var(--warning) 74%, transparent 26%);}
+.b-priority-medium{color:var(--info-content);border-color:color-mix(in oklch,var(--info) 44%, var(--line) 56%);background:color-mix(in oklch,var(--info) 70%, transparent 30%);}
+.b-priority-low{color:var(--accent-content);border-color:color-mix(in oklch,var(--accent) 38%, var(--line) 62%);background:color-mix(in oklch,var(--accent) 58%, transparent 42%);}
+.b-kind{color:var(--base-content);border-color:var(--line);background:linear-gradient(180deg,color-mix(in oklch,var(--neutral) 92%, var(--base-300) 8%),color-mix(in oklch,var(--base-200) 86%, black 14%));}
+.tag{background:linear-gradient(180deg,color-mix(in oklch,var(--neutral) 92%, var(--accent) 8%),color-mix(in oklch,var(--base-200) 88%, var(--accent) 12%));color:var(--base-content);}
+.mini-primary{border-color:color-mix(in oklch,var(--info) 36%, var(--line) 64%);color:var(--info);background:linear-gradient(180deg,color-mix(in oklch,var(--info) 14%, var(--base-200) 86%),color-mix(in oklch,var(--info) 8%, var(--base-300) 92%));}
+.search:focus,.control-select:focus,.restore-input:focus{outline:none;border-color:color-mix(in oklch,var(--primary) 44%, var(--line) 56%);box-shadow:0 0 0 2px color-mix(in oklch,var(--primary) 24%, transparent 76%);}
+.status-dot{background:var(--neutral-content);}
+.dot-online{background:var(--success);box-shadow:0 0 0 2px color-mix(in oklch,var(--success) 26%, transparent 74%);}
+.dot-warning{background:var(--warning);box-shadow:0 0 0 2px color-mix(in oklch,var(--warning) 26%, transparent 74%);}
+.dot-error{background:var(--error);box-shadow:0 0 0 2px color-mix(in oklch,var(--error) 26%, transparent 74%);}
+.meter{background:color-mix(in oklch,var(--base-300) 88%, black 12%);border-color:var(--line-soft);}
+.meter > span{background:linear-gradient(90deg,color-mix(in oklch,var(--success) 84%, white 16%),color-mix(in oklch,var(--success) 58%, var(--primary) 42%));}
+.meter.warn > span{background:linear-gradient(90deg,color-mix(in oklch,var(--warning) 86%, white 14%),color-mix(in oklch,var(--warning) 62%, var(--primary) 38%));}
+.meter.danger > span{background:linear-gradient(90deg,color-mix(in oklch,var(--error) 82%, white 18%),color-mix(in oklch,var(--error) 62%, var(--secondary) 38%));}
+.iframe-wrap{background:var(--base-300);}
+.tone-sky{border-color:color-mix(in oklch,var(--info) 28%, var(--line) 72%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--info) 16%, transparent 84%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--info) 10%, var(--neutral) 90%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-cyan{border-color:color-mix(in oklch,var(--info) 34%, var(--line) 66%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--info) 18%, transparent 82%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--info) 12%, var(--neutral) 88%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-emerald{border-color:color-mix(in oklch,var(--success) 30%, var(--line) 70%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--success) 15%, transparent 85%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--success) 10%, var(--neutral) 90%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-violet{border-color:color-mix(in oklch,var(--accent) 32%, var(--line) 68%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--accent) 16%, transparent 84%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--accent) 12%, var(--neutral) 88%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-rose{border-color:color-mix(in oklch,var(--secondary) 32%, var(--line) 68%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--secondary) 15%, transparent 85%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--secondary) 12%, var(--neutral) 88%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-amber{border-color:color-mix(in oklch,var(--warning) 34%, var(--line) 66%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--warning) 15%, transparent 85%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--warning) 12%, var(--neutral) 88%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-indigo{border-color:color-mix(in oklch,var(--accent) 28%, var(--line) 72%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--accent) 12%, transparent 88%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--accent) 10%, var(--neutral) 90%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-lime{border-color:color-mix(in oklch,var(--success) 24%, var(--line) 76%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--success) 12%, transparent 88%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--success) 10%, var(--neutral) 90%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.tone-slate{border-color:color-mix(in oklch,var(--neutral-content) 20%, var(--line) 80%)!important;background:radial-gradient(circle at top right,color-mix(in oklch,var(--neutral-content) 8%, transparent 92%),transparent 42%),linear-gradient(180deg,color-mix(in oklch,var(--neutral) 96%, var(--base-300) 4%),color-mix(in oklch,var(--base-200) 76%, black 24%))!important;}
+.dense-stat.tone-sky .label,.group-chip.tone-sky,.route-item.tone-sky .desc,.cmd-box.tone-sky .card-sub{color:color-mix(in oklch,var(--info) 54%, var(--base-content) 46%);}
+.dense-stat.tone-cyan .label,.group-chip.tone-cyan,.route-item.tone-cyan .desc,.cmd-box.tone-cyan .card-sub{color:color-mix(in oklch,var(--info) 58%, var(--base-content) 42%);}
+.dense-stat.tone-emerald .label,.group-chip.tone-emerald,.route-item.tone-emerald .desc,.cmd-box.tone-emerald .card-sub{color:color-mix(in oklch,var(--success) 58%, var(--base-content) 42%);}
+.dense-stat.tone-violet .label,.group-chip.tone-violet,.route-item.tone-violet .desc,.cmd-box.tone-violet .card-sub{color:color-mix(in oklch,var(--accent) 56%, var(--base-content) 44%);}
+.dense-stat.tone-rose .label,.group-chip.tone-rose,.route-item.tone-rose .desc,.cmd-box.tone-rose .card-sub{color:color-mix(in oklch,var(--secondary) 56%, var(--base-content) 44%);}
+.dense-stat.tone-amber .label,.group-chip.tone-amber,.route-item.tone-amber .desc,.cmd-box.tone-amber .card-sub{color:color-mix(in oklch,var(--warning) 62%, var(--base-content) 38%);}
+.dense-stat.tone-indigo .label,.group-chip.tone-indigo,.route-item.tone-indigo .desc,.cmd-box.tone-indigo .card-sub{color:color-mix(in oklch,var(--accent) 52%, var(--base-content) 48%);}
+.dense-stat.tone-lime .label,.group-chip.tone-lime,.route-item.tone-lime .desc,.cmd-box.tone-lime .card-sub{color:color-mix(in oklch,var(--success) 52%, var(--base-content) 48%);}
+.dense-stat.tone-slate .label,.group-chip.tone-slate,.route-item.tone-slate .desc,.cmd-box.tone-slate .card-sub{color:var(--text-soft);}
+#tab_overview .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--info) 5%, var(--base-200) 95%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_missions .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--primary) 5%, var(--base-200) 95%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_skills .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--accent) 6%, var(--base-200) 94%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_reminders .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--secondary) 6%, var(--base-200) 94%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_knowledge .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--success) 6%, var(--base-200) 94%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_git .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--accent) 6%, var(--base-200) 94%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_backup .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--success) 6%, var(--base-200) 94%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_tokens .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--neutral) 88%, var(--base-200) 12%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_telegram .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--accent) 7%, var(--base-200) 93%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#tab_dashboard .panel{background:linear-gradient(180deg,color-mix(in oklch,var(--info) 6%, var(--base-200) 94%),color-mix(in oklch,var(--base-100) 82%, black 18%));}
+#modal-overlay,#confirm-overlay{background:oklch(22% 0.019 237.69 / 0.94);}
+#modal-head{background:linear-gradient(180deg,color-mix(in oklch,var(--base-300) 92%, black 8%),color-mix(in oklch,var(--base-200) 88%, black 12%));}
+.code-box,.json-box{background:linear-gradient(180deg,color-mix(in oklch,var(--base-300) 96%, black 4%),color-mix(in oklch,var(--base-200) 84%, black 16%));}
+::-webkit-scrollbar-thumb{background:color-mix(in oklch,var(--neutral-content) 24%, var(--base-200) 76%);}
+#modal-overlay,#confirm-overlay{position:fixed;inset:0;background:rgba(2,6,23,.86);display:none;align-items:center;justify-content:center;padding:18px;z-index:60;}
+#modal-overlay.open,#confirm-overlay.open{display:flex;}
+#modal-box,#confirm-box{width:min(1320px,100%);max-height:92vh;overflow:hidden;border:1px solid var(--line);background:var(--panel-bg);border-radius:8px;display:flex;flex-direction:column;}
+#modal-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,color-mix(in oklch,var(--base-300) 92%, black 8%),color-mix(in oklch,var(--base-200) 88%, black 12%));}
+#modal-title{font-size:12px;font-weight:700;color:var(--text-strong);}
+#modal-body{padding:12px;overflow:auto;}
+.code-box{border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in oklch,var(--base-300) 96%, black 4%),color-mix(in oklch,var(--base-200) 84%, black 16%));border-radius:6px;overflow:auto;}
+.code-box pre{margin:0;padding:12px;font-size:11px;}
+.json-box{border:1px solid var(--line);background:linear-gradient(180deg,color-mix(in oklch,var(--base-300) 96%, black 4%),color-mix(in oklch,var(--base-200) 84%, black 16%));border-radius:6px;padding:12px;overflow:auto;}
+.json-box pre{margin:0;font-size:11px;white-space:pre-wrap;word-break:break-word;color:var(--base-content);font-family:'JetBrains Mono',monospace;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:color-mix(in oklch,var(--neutral-content) 24%, var(--base-200) 76%);border-radius:999px;}
+@media (max-width:900px){
+  .page{padding:10px;}
+  iframe{height:70vh;min-height:500px;}
+  .card-grid-six{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:1400px){
+  .card-grid-six{grid-template-columns:repeat(4,minmax(0,1fr));}
+}
+
+/* Reference-inspired admin dashboard skin */
+:root{
+  --ref-bg:#141b2d;
+  --ref-panel:#212b3d;
+  --ref-panel-2:#2a3447;
+  --ref-panel-3:#354055;
+  --ref-border:#2d3850;
+  --ref-border-soft:rgba(255,255,255,.05);
+  --ref-text:#f3f5fb;
+  --ref-soft:#b6bfd0;
+  --ref-muted:#818ca2;
+  --ref-accent:#6b57f5;
+  --ref-accent-2:#7f6dff;
+  --ref-accent-soft:rgba(107,87,245,.16);
+  --ref-success:#17c39b;
+  --ref-warning:#f4b24f;
+  --ref-error:#ea5f7d;
+}
+body{
+  background:var(--ref-bg)!important;
+  color:var(--ref-soft)!important;
+}
+.page{
+  max-width:none!important;
+  margin:0!important;
+  padding:20px 22px 34px!important;
+  display:block!important;
+}
+.brand-orb{
+  width:22px;
+  height:22px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#7b61ff,#4b2be3);
+  box-shadow:inset -6px 0 0 rgba(13,19,31,.36),0 0 0 4px rgba(107,87,245,.08);
+  flex:none;
+}
+.brand{
+  display:flex!important;
+  align-items:center!important;
+  gap:14px!important;
+}
+.brand h1{
+  color:var(--ref-text)!important;
+  font-size:24px!important;
+  font-weight:800!important;
+  letter-spacing:-.02em!important;
+}
+.brand p{
+  color:var(--ref-muted)!important;
+  font-family:'Inter',sans-serif!important;
+  font-size:13px!important;
+  margin-top:6px!important;
+}
+.topbar{
+  margin-bottom:0!important;
+  align-items:center!important;
+}
+.stats{
+  gap:10px!important;
+}
+.toolbar{
+  margin-bottom:4px!important;
+  padding:12px 14px!important;
+  border:1px solid var(--ref-border)!important;
+  background:var(--ref-panel)!important;
+  border-radius:18px!important;
+}
+.search{
+  border:1px solid var(--ref-border)!important;
+  background:#1c2637!important;
+  color:var(--ref-text)!important;
+  border-radius:14px!important;
+  padding:12px 14px!important;
+  min-height:46px!important;
+}
+.search::placeholder{
+  color:var(--ref-muted)!important;
+}
+.tabs.top-tabs{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:12px!important;
+  border-bottom:0!important;
+  padding:10px 0 4px!important;
+  margin:10px 0 20px!important;
+  position:static!important;
+}
+.tab-btn{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:auto!important;
+  min-width:154px!important;
+  min-height:48px!important;
+  padding:12px 18px!important;
+  border-radius:18px!important;
+  border:1px solid var(--ref-border)!important;
+  background:var(--ref-panel)!important;
+  color:#a7b0c3!important;
+  box-shadow:none!important;
+  font-size:15px!important;
+  font-weight:700!important;
+  letter-spacing:0!important;
+}
+.tab-btn:hover{
+  background:#293446!important;
+  color:var(--ref-text)!important;
+}
+.tab-btn.active{
+  background:linear-gradient(180deg,#313b4f,#3b4559)!important;
+  color:var(--ref-accent-2)!important;
+  border-color:#49556b!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 0 0 1px rgba(107,87,245,.06)!important;
+}
+.panel{
+  background:transparent!important;
+  border:0!important;
+  padding:0!important;
+}
+.panel-head{
+  margin-bottom:14px!important;
+  align-items:center!important;
+}
+.panel-head h2{
+  color:var(--ref-text)!important;
+  font-size:24px!important;
+  font-weight:800!important;
+  letter-spacing:-.02em!important;
+}
+.panel-head p{
+  color:var(--ref-muted)!important;
+  font-size:13px!important;
+  max-width:760px;
+}
+.dense-stat,.dense-card,.meta-box,.stack-box,.cmd-box,.route-item,.table-shell,.iframe-wrap,details.group-section,details.log-row,#modal-box,#confirm-box{
+  background:var(--ref-panel)!important;
+  border:1px solid #3d4a66!important;
+  border-radius:20px!important;
+  box-shadow:0 8px 22px rgba(4,10,20,.12)!important;
+}
+.dense-card{
+  padding:16px!important;
+  min-height:170px!important;
+  gap:10px!important;
+}
+.dense-card:hover{
+  border-color:#46516a!important;
+  background:var(--ref-panel)!important;
+}
+.dense-grid{
+  gap:14px!important;
+}
+.dense-stat{
+  padding:16px!important;
+}
+.dense-stat .label,.group-chip,.field-label,.card-sub,.meta-box .k,.route-item .desc,.log-col-sub,.muted,.control-label{
+  color:#9ba8c0!important;
+}
+.dense-stat .value,.field-value,.meta-box .v,.log-col-main,.log-snippet,.json-box pre,.code-box pre,.route-item .title{
+  color:var(--ref-text)!important;
+}
+.name-accent{
+  color:var(--ref-text)!important;
+  font-weight:800!important;
+}
+.group-strip{
+  gap:8px!important;
+  margin-bottom:12px!important;
+}
+.group-chip,.badge,.tag{
+  border-radius:999px!important;
+  border:1px solid #495777!important;
+  background:#33415a!important;
+  color:#edf2fb!important;
+  padding:4px 10px!important;
+}
+.actions{
+  gap:8px!important;
+}
+.btn,.mini-btn,.logout{
+  min-height:40px;
+  border-radius:14px!important;
+  border:1px solid #495777!important;
+  background:#33415a!important;
+  color:var(--ref-text)!important;
+  padding:0 14px!important;
+}
+.btn:hover,.mini-btn:hover,.logout:hover{
+  background:#3a4660!important;
+}
+.btn-primary{
+  border-color:transparent!important;
+  background:linear-gradient(135deg,var(--ref-accent),var(--ref-accent-2))!important;
+  color:#ffffff!important;
+}
+.btn-danger,.mini-danger{
+  background:rgba(234,95,125,.12)!important;
+  color:#ff93a8!important;
+  border-color:rgba(234,95,125,.18)!important;
+}
+.mini-primary{
+  background:rgba(107,87,245,.18)!important;
+  color:#b3a6ff!important;
+  border-color:rgba(107,87,245,.26)!important;
+}
+.control-select,.restore-input{
+  border-radius:14px!important;
+  border:1px solid #495777!important;
+  background:#243146!important;
+  color:var(--ref-text)!important;
+  min-height:42px!important;
+}
+.dense-table{
+  min-width:0!important;
+}
+.dense-table th{
+  background:#1d2738!important;
+  color:#97a1b5!important;
+  border-bottom:1px solid var(--ref-border)!important;
+  font-size:11px!important;
+  padding:14px 16px!important;
+}
+.dense-table td{
+  color:var(--ref-soft)!important;
+  border-bottom:1px solid var(--ref-border-soft)!important;
+  padding:14px 16px!important;
+}
+.dense-table tr:hover td{
+  background:rgba(255,255,255,.015)!important;
+}
+details.group-section > summary,details.log-row > summary{
+  background:#2c3850!important;
+  color:var(--ref-text)!important;
+  border-radius:20px 20px 0 0!important;
+  padding:14px 16px!important;
+}
+details.group-section[open] > summary,details.log-row[open] > summary{
+  border-bottom:1px solid var(--ref-border)!important;
+}
+details.group-section .group-body,.log-body{
+  padding:14px!important;
+  background:rgba(255,255,255,.012)!important;
+}
+.route-list,.card-grid,.card-grid-tight,.card-grid-six{
+  gap:14px!important;
+}
+.meter{
+  height:8px!important;
+  border-radius:999px!important;
+  background:#39455a!important;
+  border:0!important;
+}
+.meter > span{
+  background:linear-gradient(90deg,#6b57f5,#7f6dff)!important;
+}
+.meter.warn > span{
+  background:linear-gradient(90deg,#14c59b,#1fd8b0)!important;
+}
+.meter.danger > span{
+  background:linear-gradient(90deg,#ea5f7d,#ff7b98)!important;
+}
+.b-status-online,.b-status-active,.b-status-ok{
+  background:rgba(23,195,155,.14)!important;
+  color:#2be0b4!important;
+  border-color:rgba(23,195,155,.18)!important;
+}
+.b-status-warning,.b-status-pending,.b-priority-high{
+  background:rgba(244,178,79,.14)!important;
+  color:#ffc66f!important;
+  border-color:rgba(244,178,79,.18)!important;
+}
+.b-status-expired,.b-status-offline,.b-status-error,.b-status-done,.b-priority-critical{
+  background:rgba(234,95,125,.14)!important;
+  color:#ff7e9a!important;
+  border-color:rgba(234,95,125,.18)!important;
+}
+.b-priority-medium{
+  background:rgba(107,87,245,.16)!important;
+  color:#b2a4ff!important;
+  border-color:rgba(107,87,245,.22)!important;
+}
+.b-priority-low,.b-kind{
+  background:#303a4d!important;
+  color:#c0c8d7!important;
+  border-color:var(--ref-border)!important;
+}
+.dot-online,.dot-warning,.dot-error{
+  box-shadow:none!important;
+}
+.dot-online{background:#1fd8b0!important;}
+.dot-warning{background:#ffbe60!important;}
+.dot-error{background:#ff708e!important;}
+.tone-sky,.tone-cyan,.tone-emerald,.tone-violet,.tone-rose,.tone-amber,.tone-indigo,.tone-lime,.tone-slate{
+  background:var(--ref-panel)!important;
+  border-color:var(--ref-border)!important;
+}
+.tone-violet{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.02),0 0 0 1px rgba(107,87,245,.06)!important;
+}
+#tab_overview .panel,#tab_missions .panel,#tab_skills .panel,#tab_reminders .panel,#tab_knowledge .panel,#tab_git .panel,#tab_backup .panel,#tab_tokens .panel,#tab_telegram .panel,#tab_dashboard .panel{
+  background:transparent!important;
+}
+#modal-overlay,#confirm-overlay{
+  background:rgba(10,14,24,.76)!important;
+  backdrop-filter:blur(5px);
+}
+#modal-head{
+  background:#252f41!important;
+}
+.code-box,.json-box{
+  background:#1a2333!important;
+}
+iframe{
+  background:#ffffff!important;
+  border-radius:18px!important;
+}
+@media (max-width:1180px){
+  .page{
+    display:block!important;
+  }
+  .tabs.top-tabs{
+    display:grid!important;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  }
+}
+
+/* Readability rebalance */
+:root{
+  --ref-bg:#111827;
+  --ref-panel:#20293a;
+  --ref-panel-2:#273245;
+  --ref-panel-3:#323d53;
+  --ref-border:#38455e;
+  --ref-border-soft:rgba(255,255,255,.06);
+  --ref-text:#edf2fb;
+  --ref-soft:#bec7d8;
+  --ref-muted:#8e9ab1;
+}
+body{
+  font-size:13px!important;
+  line-height:1.46!important;
+}
+.page{
+  width:min(1780px, calc(100vw - 40px))!important;
+  margin:0 auto!important;
+  padding:18px 22px 30px!important;
+}
+.topbar{
+  gap:16px!important;
+  padding:4px 2px 2px!important;
+  margin-bottom:8px!important;
+}
+.brand h1{
+  font-size:22px!important;
+}
+.brand p{
+  font-size:12px!important;
+}
+.toolbar{
+  gap:14px!important;
+  margin-bottom:12px!important;
+  padding:14px 16px!important;
+  background:var(--ref-panel)!important;
+  border-color:var(--ref-border)!important;
+  box-shadow:0 10px 28px rgba(8,12,20,.12)!important;
+}
+.search{
+  min-height:44px!important;
+  padding:11px 14px!important;
+  font-size:13px!important;
+}
+.tabs.top-tabs{
+  gap:10px!important;
+  margin:0 0 18px!important;
+  padding:14px!important;
+  background:linear-gradient(180deg,#20293b,#1b2434)!important;
+  border:1px solid #38455f!important;
+  border-radius:18px!important;
+  box-shadow:0 10px 28px rgba(7,12,22,.18), inset 0 1px 0 rgba(255,255,255,.03)!important;
+}
+.tab-btn{
+  position:relative!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  min-width:138px!important;
+  min-height:48px!important;
+  padding:11px 16px!important;
+  border-radius:14px!important;
+  font-size:13px!important;
+  font-weight:800!important;
+  letter-spacing:.01em!important;
+  background:linear-gradient(180deg,#283246,#222b3d)!important;
+  border:1px solid #43506d!important;
+  color:#c6d0e2!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03)!important;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease,box-shadow .16s ease,color .16s ease!important;
+}
+.tab-btn::after{
+  content:""!important;
+  position:absolute!important;
+  left:16px!important;
+  right:16px!important;
+  bottom:7px!important;
+  height:2px!important;
+  border-radius:999px!important;
+  background:transparent!important;
+  opacity:.9!important;
+}
+.tab-btn:hover{
+  background:linear-gradient(180deg,#303a50,#273145)!important;
+  border-color:#53617f!important;
+  color:#eef3fb!important;
+}
+.tab-btn.active{
+  transform:translateY(-1px)!important;
+  color:#ffffff!important;
+  border-color:#6b7b9f!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 10px 24px rgba(8,12,22,.16),0 0 0 1px rgba(255,255,255,.03)!important;
+}
+#btn_overview,
+#btn_missions,
+#btn_skills,
+#btn_reminders{
+  background:linear-gradient(180deg,#2b3550,#242d42)!important;
+  border-color:#4b5978!important;
+  color:#d8e2f3!important;
+}
+#btn_overview.active::after{
+  background:linear-gradient(90deg,#2dd4bf,#67e8f9)!important;
+}
+#btn_missions.active{
+  background:linear-gradient(180deg,#4e4356,#3a3342)!important;
+}
+#btn_missions.active::after{
+  background:linear-gradient(90deg,#fb923c,#fdba74)!important;
+}
+#btn_skills.active{
+  background:linear-gradient(180deg,#42365a,#342d47)!important;
+}
+#btn_skills.active::after{
+  background:linear-gradient(90deg,#a78bfa,#c4b5fd)!important;
+}
+#btn_reminders.active{
+  background:linear-gradient(180deg,#4b3649,#3a2c39)!important;
+}
+#btn_reminders.active::after{
+  background:linear-gradient(90deg,#fb7185,#f9a8d4)!important;
+}
+#btn_knowledge.active{
+  background:linear-gradient(180deg,#334b48,#293c3a)!important;
+}
+#btn_knowledge.active::after{
+  background:linear-gradient(90deg,#34d399,#6ee7b7)!important;
+}
+#btn_git.active{
+  background:linear-gradient(180deg,#34445a,#2a3648)!important;
+}
+#btn_git.active::after{
+  background:linear-gradient(90deg,#60a5fa,#93c5fd)!important;
+}
+#btn_backup.active{
+  background:linear-gradient(180deg,#405043,#303d34)!important;
+}
+#btn_backup.active::after{
+  background:linear-gradient(90deg,#a3e635,#bef264)!important;
+}
+#btn_tokens.active{
+  background:linear-gradient(180deg,#404b5a,#313949)!important;
+}
+#btn_tokens.active::after{
+  background:linear-gradient(90deg,#cbd5e1,#e2e8f0)!important;
+}
+#btn_telegram.active{
+  background:linear-gradient(180deg,#4a3f5d,#393148)!important;
+}
+#btn_telegram.active::after{
+  background:linear-gradient(90deg,#c084fc,#e9d5ff)!important;
+}
+#btn_dashboard.active{
+  background:linear-gradient(180deg,#334a57,#273a46)!important;
+}
+#btn_dashboard.active::after{
+  background:linear-gradient(90deg,#67e8f9,#a5f3fc)!important;
+}
+.panel-head{
+  margin-bottom:12px!important;
+  gap:14px!important;
+}
+.panel-head h2{
+  font-size:20px!important;
+}
+.panel-head p{
+  font-size:12px!important;
+  max-width:820px!important;
+}
+.dense-grid,.card-grid,.card-grid-tight,.card-grid-six,.route-list{
+  gap:16px!important;
+}
+.dense-stat,.dense-card,.meta-box,.stack-box,.cmd-box,.route-item,.table-shell,.iframe-wrap,details.group-section,details.log-row,#modal-box,#confirm-box{
+  border-color:var(--ref-border)!important;
+  box-shadow:0 12px 30px rgba(8,12,20,.13), inset 0 1px 0 rgba(255,255,255,.02)!important;
+}
+.dense-stat{
+  min-height:98px!important;
+  padding:15px 16px!important;
+  background:var(--ref-panel-2)!important;
+}
+.dense-stat.tone-sky{
+  border-color:rgba(96,165,250,.30)!important;
+  background:radial-gradient(circle at top right,rgba(96,165,250,.16),transparent 42%),linear-gradient(180deg,#2a3950,#243146)!important;
+}
+.dense-stat.tone-cyan{
+  border-color:rgba(103,232,249,.30)!important;
+  background:radial-gradient(circle at top right,rgba(103,232,249,.16),transparent 42%),linear-gradient(180deg,#2a394b,#243140)!important;
+}
+.dense-stat.tone-emerald{
+  border-color:rgba(74,222,128,.28)!important;
+  background:radial-gradient(circle at top right,rgba(74,222,128,.15),transparent 42%),linear-gradient(180deg,#293b47,#22333d)!important;
+}
+.dense-stat.tone-violet{
+  border-color:rgba(167,139,250,.32)!important;
+  background:radial-gradient(circle at top right,rgba(167,139,250,.17),transparent 42%),linear-gradient(180deg,#303959,#273148)!important;
+}
+.dense-stat.tone-rose{
+  border-color:rgba(244,114,182,.28)!important;
+  background:radial-gradient(circle at top right,rgba(244,114,182,.15),transparent 42%),linear-gradient(180deg,#31384d,#282f42)!important;
+}
+.dense-stat.tone-amber{
+  border-color:rgba(251,191,36,.30)!important;
+  background:radial-gradient(circle at top right,rgba(251,191,36,.17),transparent 42%),linear-gradient(180deg,#34394c,#2b3141)!important;
+}
+.dense-stat.tone-indigo{
+  border-color:rgba(129,140,248,.30)!important;
+  background:radial-gradient(circle at top right,rgba(129,140,248,.16),transparent 42%),linear-gradient(180deg,#2d3855,#243048)!important;
+}
+.dense-stat.tone-lime{
+  border-color:rgba(163,230,53,.26)!important;
+  background:radial-gradient(circle at top right,rgba(163,230,53,.14),transparent 42%),linear-gradient(180deg,#2c3a43,#24323b)!important;
+}
+.dense-stat.tone-slate{
+  border-color:rgba(148,163,184,.24)!important;
+  background:radial-gradient(circle at top right,rgba(148,163,184,.13),transparent 42%),linear-gradient(180deg,#2b3648,#243041)!important;
+}
+.dense-card{
+  min-height:164px!important;
+  padding:15px!important;
+  gap:9px!important;
+  background:var(--ref-panel)!important;
+}
+.dense-card:hover{
+  border-color:#4a5973!important;
+  background:var(--ref-panel-2)!important;
+}
+#overview_table .dense-card{
+  min-height:188px!important;
+}
+#missions_table .dense-card{
+  min-height:222px!important;
+}
+#skills_tables .dense-card,#git_tables .dense-card,#backup_table .dense-card{
+  min-height:178px!important;
+}
+.card-top{
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:stretch!important;
+  gap:8px!important;
+}
+.card-top .actions{
+  width:100%!important;
+  flex:0 0 auto!important;
+  justify-content:flex-start!important;
+}
+.card-top .field-col{
+  min-width:0!important;
+  width:100%!important;
+}
+.card-meta{
+  gap:8px!important;
+}
+.card-meta.compact{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+.pill-row{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
+}
+.kv-pill{
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-height:28px!important;
+  padding:0 10px!important;
+  border:1px solid #495777!important;
+  border-radius:999px!important;
+  background:var(--ref-panel-3)!important;
+  color:#edf2fb!important;
+  font-size:11px!important;
+  line-height:1!important;
+  white-space:nowrap!important;
+}
+.kv-pill strong{
+  color:#a6b2c8!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  text-transform:uppercase!important;
+  letter-spacing:.05em!important;
+}
+.field-row{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  align-items:start!important;
+}
+.mission-detail-grid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1.5fr) minmax(0,1.5fr) minmax(160px,.95fr)!important;
+  gap:10px 12px!important;
+  align-items:start!important;
+}
+.mission-detail-grid .span-2{
+  grid-column:span 2!important;
+}
+.mission-detail-grid .span-3{
+  grid-column:1 / -1!important;
+}
+.field-col{
+  min-width:0!important;
+}
+.field-label{
+  margin-bottom:4px!important;
+}
+.actions{
+  row-gap:8px!important;
+}
+.panel > .group-strip,
+.panel > .controls-row,
+.panel > .dense-grid{
+  margin-bottom:14px!important;
+}
+.dense-stat .label,.field-label,.meta-box .k,.log-col-sub,.route-item .desc,.control-label,.muted{
+  font-size:10.5px!important;
+  color:#9ba8c0!important;
+}
+.dense-stat .value{
+  font-size:22px!important;
+  font-weight:800!important;
+}
+.dense-stat .sub{
+  font-size:11.5px!important;
+  color:var(--ref-muted)!important;
+}
+.card-title{
+  font-size:15px!important;
+  font-weight:800!important;
+  line-height:1.28!important;
+  display:block!important;
+  width:100%!important;
+}
+.card-sub{
+  font-size:11.5px!important;
+  margin-top:2px!important;
+  color:#a9b4c8!important;
+}
+.name-accent,
+.card-title .name-accent,
+.route-item .title,
+.panel-head h2{
+  color:#f8fbff!important;
+}
+.field-value,.meta-box .v,.route-item .title{
+  font-size:12.5px!important;
+  line-height:1.45!important;
+}
+.route-item{
+  background:var(--ref-panel-2)!important;
+}
+.cmd-box{
+  background:var(--ref-panel-2)!important;
+}
+.log-body{
+  background:rgba(255,255,255,.016)!important;
+}
+.badge,.tag{
+  min-height:24px!important;
+  padding:0 10px!important;
+  font-size:11px!important;
+  font-weight:700!important;
+}
+.group-chip{
+  min-height:26px!important;
+  padding:0 11px!important;
+  font-size:11px!important;
+}
+.btn,.mini-btn,.logout{
+  min-height:38px!important;
+  padding:0 14px!important;
+  font-size:12px!important;
+}
+.mini-btn{
+  min-height:32px!important;
+  padding:0 12px!important;
+  font-size:11px!important;
+}
+.dense-table th{
+  background:#212b3d!important;
+  color:#99a6bb!important;
+  font-size:11px!important;
+  padding:13px 14px!important;
+}
+.dense-table td{
+  color:var(--ref-soft)!important;
+  font-size:12.5px!important;
+  padding:12px 14px!important;
+}
+.table-shell{
+  padding:2px!important;
+  background:var(--ref-panel-2)!important;
+}
+.group-body{
+  padding:12px 14px 14px!important;
+}
+.mono{
+  font-size:11px!important;
+}
+.log-snippet{
+  font-size:10.6px!important;
+  line-height:1.52!important;
+}
+details.group-section > summary,details.log-row > summary{
+  padding:13px 15px!important;
+}
+.log-body,details.group-section .group-body{
+  padding:15px!important;
+}
+.meter{
+  height:9px!important;
+  background:#3e495f!important;
+}
+.name-accent{
+  color:#f5f7fd!important;
+  font-weight:800!important;
+}
+.b-kind{
+  background:#313b50!important;
+  color:#d1d8e5!important;
+}
+.tone-sky{
+  background:linear-gradient(180deg,#212c3f,#1d2737)!important;
+}
+.tone-cyan{
+  background:linear-gradient(180deg,#212d40,#1d2839)!important;
+}
+.tone-emerald{
+  background:linear-gradient(180deg,#202b3c,#1c2635)!important;
+}
+.tone-violet{
+  background:linear-gradient(180deg,#252f44,#1f293b)!important;
+}
+.tone-rose{
+  background:linear-gradient(180deg,#242d40,#1d2737)!important;
+}
+.tone-amber{
+  background:linear-gradient(180deg,#252e40,#1f2938)!important;
+}
+.tone-indigo{
+  background:linear-gradient(180deg,#232d41,#1d2739)!important;
+}
+.tone-lime{
+  background:linear-gradient(180deg,#232d3d,#1d2735)!important;
+}
+.tone-slate{
+  background:linear-gradient(180deg,#232c3d,#1d2635)!important;
+}
+#overview_logs .log-list{
+  gap:12px!important;
+}
+#dashboard_access{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  align-items:start!important;
+}
+#dashboard_access .cmd-box{
+  min-height:0!important;
+  height:auto!important;
+}
+#dashboard_routes{
+  align-items:start!important;
+}
+#dashboard_access .cmd-box,
+#dashboard_routes .route-item{
+  background:var(--ref-panel-2)!important;
+}
+.cmd-box,.route-item,.meta-box{
+  background:var(--ref-panel-2)!important;
+}
+.dense-card:nth-child(3n+1){
+  background:var(--ref-panel)!important;
+}
+.dense-card:nth-child(3n+2){
+  background:var(--ref-panel-2)!important;
+}
+.dense-card:nth-child(3n){
+  background:var(--ref-panel-3)!important;
+}
+.dense-card:hover:nth-child(3n+1),
+.dense-card:hover:nth-child(3n+2),
+.dense-card:hover:nth-child(3n){
+  background:#334055!important;
+}
+#overview_table .dense-card{
+  background:var(--ref-panel-2)!important;
+}
+#missions_table .card-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+}
+#missions_table .card-grid[data-count="1"]{
+  grid-template-columns:1fr!important;
+}
+#missions_table .card-grid[data-count="1"] .mission-card{
+  min-height:0!important;
+}
+#skills_tables .card-grid-six{
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
+}
+#git_tables .card-grid{
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr))!important;
+}
+#backup_table .card-grid-tight,
+#reminders_tables .card-grid-tight,
+#knowledge_tables .card-grid-tight,
+#tokens_table .card-grid-tight{
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important;
+}
+.iframe-wrap{
+  background:#1b2435!important;
+}
+#modal-box,#confirm-box{
+  background:#1f2839!important;
+}
+.code-box,.json-box{
+  background:#182132!important;
+}
+@media (max-width:1680px){
+  #skills_tables .card-grid-six{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:1180px){
+  #dashboard_access{
+    grid-template-columns:1fr!important;
+  }
+}
+@media (max-width:1400px){
+  #missions_table .card-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  #skills_tables .card-grid-six{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:1180px){
+  .tabs.top-tabs{
+    padding:10px!important;
+  }
+  .tab-btn{
+    min-width:0!important;
+  }
+  .field-row{
+    grid-template-columns:1fr!important;
+  }
+  .mission-detail-grid{
+    grid-template-columns:1fr 1fr!important;
+  }
+  .mission-detail-grid .span-2,
+  .mission-detail-grid .span-3{
+    grid-column:1 / -1!important;
+  }
+  #missions_table .card-grid{
+    grid-template-columns:1fr!important;
+  }
+  #skills_tables .card-grid-six{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:900px){
+  .page{
+    width:min(100%, calc(100vw - 20px))!important;
+    padding:14px 12px 24px!important;
+  }
+  .toolbar{
+    padding:12px!important;
+  }
+  .dense-grid,.card-grid,.card-grid-tight,.card-grid-six,.route-list{
+    gap:12px!important;
+  }
+  .dense-card{
+    min-height:156px!important;
+  }
+  .card-meta.compact{
+    grid-template-columns:1fr!important;
+  }
+  .mission-detail-grid{
+    grid-template-columns:1fr!important;
+  }
+  #skills_tables .card-grid-six{
+    grid-template-columns:1fr!important;
+  }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-orb"></div>
+      <div>
+        <h1>AQUA Manager ClawBot</h1>
+        <p id="sys_time">-</p>
+      </div>
+    </div>
+    <div class="stats">
+      <a class="logout" href="/logout">⏏ Thoát</a>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input id="global_search" class="search" type="text" placeholder="Tìm kiếm trong tab hiện tại..." oninput="onSearch(this.value)">
+    <div class="action-row">
+      <button class="btn" onclick="refreshCurrentTab()">🔄 Reload tab</button>
+      <a class="btn btn-primary" href="/openclaw/" target="_blank">🔗 OpenClaw tab mới</a>
+    </div>
+  </div>
+
+  <div class="tabs top-tabs">
+    <button id="btn_overview" class="tab-btn tab-knowledge active" onclick="setTab('overview')">🏠 Tổng Quan</button>
+    <button id="btn_missions" class="tab-btn tab-missions" onclick="setTab('missions')">🚀 Nhiệm Vụ</button>
+    <button id="btn_skills" class="tab-btn tab-skills" onclick="setTab('skills')">🧩 Skill Forge</button>
+    <button id="btn_reminders" class="tab-btn tab-reminders" onclick="setTab('reminders')">⏰ Nhắc Việc</button>
+    <button id="btn_knowledge" class="tab-btn tab-knowledge" onclick="setTab('knowledge')">🧠 Tàng Thư Các</button>
+    <button id="btn_git" class="tab-btn tab-git" onclick="setTab('git')">📦 Gói Github</button>
+    <button id="btn_backup" class="tab-btn tab-backup" onclick="setTab('backup')">🛡️ Sao Lưu</button>
+    <button id="btn_tokens" class="tab-btn tab-tokens" onclick="setTab('tokens')">🔑 Khoá/API</button>
+    <button id="btn_telegram" class="tab-btn tab-skills" onclick="setTab('telegram')">💬 Quyền Telegram</button>
+    <button id="btn_dashboard" class="tab-btn tab-dashboard" onclick="setTab('dashboard')">🖥️ Cổng OpenClaw</button>
+  </div>
+
+  <div id="tab_overview" class="tab-content">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🏠 Tổng Quan Vận Hành</h2>
+          <p>Màn tổng hợp nhanh để thấy ngay lỗi, cảnh báo, tải hệ thống và điểm cần xử lý trước.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadOverview(true)">Reload</button>
+        </div>
+      </div>
+      <div id="overview_summary" class="dense-grid"></div>
+      <div id="overview_groups" class="group-strip"></div>
+      <div id="overview_controls" class="controls-row"></div>
+      <div id="overview_table"></div>
+      <div id="overview_logs" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <div id="tab_missions" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🚀 Tiến trình / Nhiệm vụ</h2>
+          <p>Dạng card cao để nhìn rõ từng nhiệm vụ, ưu tiên, tài nguyên, script và bước đang chạy.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadMissions(true)">Reload</button>
+        </div>
+      </div>
+      <div id="missions_summary" class="dense-grid"></div>
+      <div id="missions_groups" class="group-strip"></div>
+      <div id="missions_controls" class="controls-row"></div>
+      <div id="missions_table"></div>
+    </div>
+  </div>
+
+  <div id="tab_tokens" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🔑 Token / Thông tin xác thực</h2>
+          <p>Dạng card với đếm ngược, thanh thời hạn và nhóm API đang dùng hoặc chưa dùng.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadTokens(true)">Reload</button>
+        </div>
+      </div>
+      <div id="tokens_summary" class="dense-grid"></div>
+      <div id="tokens_controls" class="controls-row"></div>
+      <div id="tokens_table"></div>
+    </div>
+  </div>
+
+  <div id="tab_telegram" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>💬 Quyền Telegram</h2>
+          <p>Xem bot Telegram hiện đang mở cho nhóm nào, admin nào từng được ghi nhận, DM đang hoạt động theo kiểu nào và lịch sử cấu hình cũ.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadTelegram(true)">Reload</button>
+        </div>
+      </div>
+      <div id="telegram_summary" class="dense-grid"></div>
+      <div id="telegram_groups" class="group-strip"></div>
+      <div id="telegram_controls" class="controls-row"></div>
+      <div id="telegram_table"></div>
+    </div>
+  </div>
+
+  <div id="tab_dashboard" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🖥️ Cổng OpenClaw</h2>
+          <p>Dùng link tokenized + tunnel để vào OpenClaw theo cách ổn định và tương thích hơn với các bản nâng cấp sau này.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" onclick="loadDashboard(true)">Lấy link truy cập chuẩn</button>
+          <button class="btn" onclick="refreshDashboard()">Reload helper</button>
+        </div>
+      </div>
+      <div id="dashboard_summary" class="group-strip"></div>
+      <div id="dashboard_access" class="card-grid-tight" style="margin-bottom:8px;"></div>
+      <div id="dashboard_routes" class="route-list" style="display:none;margin-bottom:8px;"></div>
+      <div id="dashboard_embed_note" class="cmd-box tone-slate" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <div id="tab_reminders" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>⏰ Nhắc việc / Đề xuất / Báo cáo ngày</h2>
+          <p>Dạng card theo nhóm để đọc nhanh nhắc việc, đề xuất và báo cáo ngày.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadReminders(true)">Reload</button>
+        </div>
+      </div>
+      <div id="reminders_summary" class="dense-grid"></div>
+      <div id="reminders_meta"></div>
+      <div id="reminders_controls" class="controls-row"></div>
+      <div id="reminders_tables"></div>
+    </div>
+  </div>
+
+  <div id="tab_knowledge" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🧠 Tàng Thư Các</h2>
+          <p>Khu đọc nhanh các tài liệu lõi như User, Skill, Memory, Learning, Soul và tài liệu liên quan.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadKnowledge(true)">Reload</button>
+        </div>
+      </div>
+      <div id="knowledge_summary" class="dense-grid"></div>
+      <div id="knowledge_groups" class="group-strip"></div>
+      <div id="knowledge_controls" class="controls-row"></div>
+      <div id="knowledge_tables"></div>
+    </div>
+  </div>
+
+  <div id="tab_skills" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🧩 Skill Forge</h2>
+          <p>Card 6 cột mỗi hàng, tối ưu để quét nhiều skill cùng lúc mà vẫn thấy trạng thái và nhóm.</p>
+        </div>
+        <div class="action-row">
+          <input id="skill_upload_input" type="file" accept=".py,.sh" style="display:none" onchange="uploadSkillFromInput(this)">
+          <button class="btn btn-primary" onclick="document.getElementById('skill_upload_input').click()">Upload skill</button>
+          <button class="btn" onclick="loadSkills(true)">Reload</button>
+        </div>
+      </div>
+      <div id="skills_summary" class="dense-grid"></div>
+      <div id="skills_groups" class="group-strip"></div>
+      <div id="skills_controls" class="controls-row"></div>
+      <div id="skills_tables"></div>
+    </div>
+  </div>
+
+  <div id="tab_git" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>📦 Github Packages</h2>
+          <p>Card gọn để thấy nguồn repo, host, branch, README/META và trạng thái cài đặt.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadGitPackages(true)">Reload</button>
+        </div>
+      </div>
+      <div id="git_summary" class="dense-grid"></div>
+      <div id="git_groups" class="group-strip"></div>
+      <div id="git_controls" class="controls-row"></div>
+      <div id="git_tables"></div>
+    </div>
+  </div>
+
+  <div id="tab_backup" class="tab-content" style="display:none;">
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>🛡️ Mục tiêu sao lưu</h2>
+          <p>Chỉ gom các tab có dữ liệu sao lưu được như Nhiệm Vụ, Nhắc Việc, Tàng Thư Các, Skill Forge, Gói Github và toàn workspace.</p>
+        </div>
+        <div class="action-row">
+          <button class="btn" onclick="loadBackup(true)">Reload</button>
+        </div>
+      </div>
+      <div id="backup_summary" class="dense-grid"></div>
+      <div id="backup_controls" class="controls-row"></div>
+      <div id="backup_table"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box">
+    <div id="modal-head">
+      <div id="modal-title">Chi tiết</div>
+      <button class="btn" onclick="closeModal()">Đóng</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <div id="modal-head">
+      <div id="confirm-title">Xác nhận thao tác</div>
+      <button class="btn" onclick="cancelDelete()">Huỷ</button>
+    </div>
+    <div id="modal-body">
+      <p id="confirm-name" class="muted"></p>
+      <div class="action-row" style="margin-top:10px;">
+        <button id="confirm-yes" class="btn btn-danger">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const TABS = ['overview','missions','skills','reminders','knowledge','git','backup','tokens','telegram','dashboard'];
+const LOADERS = {
+  overview: force => loadOverview(force),
+  missions: force => loadMissions(force),
+  tokens: force => loadTokens(force),
+  telegram: force => loadTelegram(force),
+  dashboard: force => loadDashboard(force),
+  reminders: force => loadReminders(force),
+  knowledge: force => loadKnowledge(force),
+  skills: force => loadSkills(force),
+  git: force => loadGitPackages(force),
+  backup: force => loadBackup(force),
+};
+const TOKEN_CATALOG = [
+  { provider: 'OpenAI API', key: 'openai-api', desc: 'API key riêng cho OpenAI model.', group: 'LLM chính' },
+  { provider: 'Anthropic', key: 'anthropic', desc: 'Claude API cho workflow thay thế.', group: 'LLM chính' },
+  { provider: 'Gemini', key: 'gemini', desc: 'Google Gemini API cho tác vụ phụ.', group: 'LLM chính' },
+  { provider: 'OpenRouter', key: 'openrouter', desc: 'Gateway nhiều model qua 1 key.', group: 'Gateway model' },
+  { provider: 'DeepSeek', key: 'deepseek', desc: 'Provider giá rẻ cho batch task.', group: 'LLM phụ' },
+  { provider: 'xAI', key: 'xai', desc: 'Grok API cho đường dự phòng.', group: 'LLM phụ' },
+  { provider: 'Groq', key: 'groq', desc: 'Inference nhanh cho tác vụ ngắn.', group: 'LLM phụ' },
+  { provider: 'Perplexity', key: 'perplexity', desc: 'Tìm kiếm/answer có tích hợp web.', group: 'Search' },
+];
+const KNOWLEDGE_TOPICS = [
+  { key: 'soul', label: 'Soul', icon: '🫀', group: 'Lõi nhận thức' },
+  { key: 'user', label: 'User', icon: '👤', group: 'Lõi nhận thức' },
+  { key: 'memory', label: 'Memory', icon: '🧠', group: 'Lõi nhận thức' },
+  { key: 'learning', label: 'Learning', icon: '📘', group: 'Lõi nhận thức' },
+  { key: 'skill', label: 'Skill', icon: '🧩', group: 'Lõi nhận thức' },
+  { key: 'identity', label: 'Identity', icon: '🪪', group: 'Bổ trợ' },
+  { key: 'agents', label: 'Agents', icon: '🤖', group: 'Bổ trợ' },
+  { key: 'heartbeat', label: 'Heartbeat', icon: '💓', group: 'Bổ trợ' },
+];
+const state = {
+  currentTab: 'overview',
+  searchQuery: '',
+  loaded: {},
+  data: {},
+  confirmAction: null,
+  table: {},
+  ui: {
+    missions: { sort: 'importance' },
+    tokens: { sort: 'priority', scope: 'all' },
+    reminders: { scope: 'all' },
+    knowledge: { scope: 'all' },
+    skills: { sort: 'group', group: 'all', install: 'all' },
+    git: { sort: 'group', group: 'all', readme: 'all' },
+    backup: { sort: 'importance' },
+  },
+};
+const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, normal: 4 };
+const STATUS_ORDER = { active: 0, online: 0, ok: 0, warning: 1, pending: 2, expired: 3, unused: 4, done: 5 };
+
+function escapeHtml(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+function searchBlob(value){
+  if (value == null) return '';
+  if (typeof value === 'string') return value.toLowerCase();
+  try { return JSON.stringify(value).toLowerCase(); }
+  catch { return String(value).toLowerCase(); }
+}
+
+function truncateText(value, max = 72){
+  const text = String(value ?? '').trim();
+  if (!text) return '-';
+  return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text;
+}
+
+function shortPath(value, max = 52){
+  const text = String(value ?? '').trim();
+  if (!text) return '-';
+  if (text.length <= max) return text;
+  return `…${text.slice(-(max - 1))}`;
+}
+
+function emptyHtml(message){
+  return `<div class="empty">${escapeHtml(message)}</div>`;
+}
+
+function fetchJson(url, options){
+  return fetch(url, options).then(async res => {
+    if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
+    return res.json();
+  });
+}
+
+function keySummary(items){
+  return Object.entries(items).map(([label, value]) => `
+    <div class="dense-stat ${toneClass(value.tone || label)}">
+      <div class="label">${escapeHtml(label)}</div>
+      <div class="value">${escapeHtml(value.value ?? value)}</div>
+      <div class="sub">${escapeHtml(value.sub ?? '')}</div>
+    </div>
+  `).join('');
+}
+
+function renderGroupStrip(items, key){
+  const counts = {};
+  items.forEach(item => {
+    const group = item[key] || 'Khác';
+    counts[group] = (counts[group] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .sort((a,b) => a[0].localeCompare(b[0], 'vi', { sensitivity: 'base' }))
+    .map(([group, count]) => `<span class="group-chip ${toneClass(group)}">${groupIcon(group)} ${escapeHtml(group)} <strong>${count}</strong></span>`)
+    .join('');
+}
+
+function tableShell(tableId, headers, body){
+  return `
+    <div class="table-shell">
+      <table class="dense-table js-table" data-table-id="${tableId}">
+        <thead>
+          <tr>${headers.map((h, idx) => `<th class="sortable" data-col="${idx}">${escapeHtml(h)}</th>`).join('')}</tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function statusLabel(status){
+  const text = String(status || '').toLowerCase();
+  if (/(online|active|ok)/.test(text)) return 'Đang chạy';
+  if (/(warning|pending)/.test(text)) return 'Cảnh báo';
+  if (/expired/.test(text)) return 'Hết hạn';
+  if (/unused|not_used|disabled/.test(text)) return 'Chưa xài';
+  if (/done/.test(text)) return 'Hoàn tất';
+  return status || 'Không rõ';
+}
+
+function statusClass(status){
+  const text = String(status || '').toLowerCase();
+  if (/(online|active|ok)/.test(text)) return 'b-status-online';
+  if (/(warning|pending)/.test(text)) return 'b-status-warning';
+  return 'b-status-expired';
+}
+
+function priorityLabel(priority){
+  const map = { critical: 'Rất cao', high: 'Cao', medium: 'Vừa', low: 'Thấp', normal: 'Thường' };
+  return map[String(priority || '').toLowerCase()] || priority || 'Không rõ';
+}
+
+function priorityClass(priority){
+  const text = String(priority || '').toLowerCase();
+  if (text === 'critical') return 'b-priority-critical';
+  if (text === 'high') return 'b-priority-high';
+  if (text === 'medium') return 'b-priority-medium';
+  return 'b-priority-low';
+}
+
+function badge(text, cls='b-kind'){
+  return `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
+}
+
+function labeledBadge(label, value, cls='b-kind'){
+  return badge(`${label}: ${value}`, cls);
+}
+
+function statusBadge(status, label='Trạng thái'){
+  return labeledBadge(label, statusLabel(status), statusClass(status));
+}
+
+function priorityBadge(priority, label='Ưu tiên'){
+  return labeledBadge(label, priorityLabel(priority), priorityClass(priority));
+}
+
+function boolBadge(flag, yes='Đã có', no='Chưa có'){
+  return flag ? badge(yes, 'b-status-online') : badge(no, 'b-status-expired');
+}
+
+function boolLabeledBadge(label, flag, yes='Đã có', no='Chưa có'){
+  return flag ? labeledBadge(label, yes, 'b-status-online') : labeledBadge(label, no, 'b-status-expired');
+}
+
+function installBadge(installed){
+  return installed ? labeledBadge('Cài đặt', 'Đã cài', 'b-status-online') : labeledBadge('Cài đặt', 'Chưa cài', 'b-status-expired');
+}
+
+function langBadge(lang){
+  const label = lang === 'python' ? 'Python' : lang === 'shell' ? 'Shell' : (lang || 'Khác');
+  return labeledBadge('Ngôn ngữ', label, 'b-kind');
+}
+
+function dotForStatus(status){
+  const text = String(status || '').toLowerCase();
+  const cls = /(online|active|ok)/.test(text) ? 'dot-online' : /(warning|pending)/.test(text) ? 'dot-warning' : 'dot-error';
+  return `<span class="status-dot ${cls}"></span>`;
+}
+
+function groupIcon(group){
+  const text = String(group || '').toLowerCase();
+  if (text.includes('dashboard')) return '🖥️';
+  if (text.includes('gateway')) return '🌐';
+  if (text.includes('mission')) return '🚀';
+  if (text.includes('scheduler') || text.includes('assistant')) return '⏱️';
+  if (text.includes('browser')) return '🌍';
+  if (text.includes('telegram') || text.includes('messaging')) return '✉️';
+  if (text.includes('ocr')) return '🔎';
+  if (text.includes('backup')) return '🛡️';
+  if (text.includes('trading')) return '📈';
+  if (text.includes('system')) return '⚙️';
+  if (text.includes('knowledge')) return '🧠';
+  if (text.includes('search')) return '🔍';
+  return '📁';
+}
+
+function toneBucket(...parts){
+  const text = parts.filter(Boolean).join(' ').toLowerCase();
+  if (/(backup|restore|sao lưu|archive)/.test(text)) return 'lime';
+  if (/(token|api|khoá|key|credential|provider|auth)/.test(text)) return 'slate';
+  if (/(github|git|repo|readme|meta|branch|remote|package)/.test(text)) return 'indigo';
+  if (/(skill|script|python|shell|forge|telegram|ocr|search)/.test(text)) return 'violet';
+  if (/(memory|learning|soul|user|knowledge|tàng thư|identity|agents|heartbeat)/.test(text)) return 'emerald';
+  if (/(reminder|nhắc việc|proposal|đề xuất|daily|báo cáo|log lỗi)/.test(text)) return 'rose';
+  if (/(warning|cảnh báo|critical|cao|quá hạn|restart)/.test(text)) return 'amber';
+  if (/(dashboard|openclaw|gateway|tunnel|proxy|host|route|terminal)/.test(text)) return 'cyan';
+  if (/(mission|nhiệm vụ|process|pm2|browser|trading|system|cpu|ram|disk|uptime)/.test(text)) return 'sky';
+  return 'slate';
+}
+
+function toneClass(...parts){
+  return `tone-${toneBucket(...parts)}`;
+}
+
+function selectControl(label, value, options, handler){
+  return `
+    <label class="control-label">
+      <span>${escapeHtml(label)}</span>
+      <select class="control-select" onchange="${handler}(this.value)">
+        ${options.map(opt => `<option value="${escapeHtml(opt.value)}" ${opt.value === value ? 'selected' : ''}>${escapeHtml(opt.label)}</option>`).join('')}
+      </select>
+    </label>
+  `;
+}
+
+function renderControls(containerId, controls){
+  const node = document.getElementById(containerId);
+  node.innerHTML = controls.join('');
+}
+
+function initTableState(tableId){
+  if (!state.table[tableId]) state.table[tableId] = { sortCol: -1, sortDir: 'asc' };
+  return state.table[tableId];
+}
+
+function enhanceTables(scope){
+  scope.querySelectorAll('.js-table').forEach(table => {
+    const tableState = initTableState(table.dataset.tableId);
+    table.querySelectorAll('th.sortable').forEach(th => {
+      th.onclick = () => {
+        const col = Number(th.dataset.col);
+        tableState.sortDir = tableState.sortCol === col && tableState.sortDir === 'asc' ? 'desc' : 'asc';
+        tableState.sortCol = col;
+        applyTableState(table);
+      };
+    });
+    applyTableState(table);
+  });
+}
+
+function applyTableState(table){
+  const tableState = initTableState(table.dataset.tableId);
+  if (tableState.sortCol < 0) return;
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+  rows.sort((a,b) => {
+    const aCell = a.children[tableState.sortCol];
+    const bCell = b.children[tableState.sortCol];
+    const aRaw = (aCell?.dataset.sort || aCell?.textContent || '').trim();
+    const bRaw = (bCell?.dataset.sort || bCell?.textContent || '').trim();
+    const aNum = Number(aRaw.replace(/[^\d.-]/g,''));
+    const bNum = Number(bRaw.replace(/[^\d.-]/g,''));
+    let cmp = 0;
+    if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && aRaw !== '' && bRaw !== '') cmp = aNum - bNum;
+    else cmp = aRaw.localeCompare(bRaw, 'vi', { numeric: true, sensitivity: 'base' });
+    return tableState.sortDir === 'asc' ? cmp : -cmp;
+  });
+  const tbody = table.querySelector('tbody');
+  rows.forEach(row => tbody.appendChild(row));
+}
+
+function applySearch(){
+  const tab = document.getElementById(`tab_${state.currentTab}`);
+  if (!tab) return;
+  const q = state.searchQuery.trim().toLowerCase();
+  tab.querySelectorAll('.searchable-item').forEach(el => {
+    const hay = (el.getAttribute('data-search') || el.textContent || '').toLowerCase();
+    el.classList.toggle('search-hidden', Boolean(q) && !hay.includes(q));
+  });
+}
+
+function onSearch(value){
+  state.searchQuery = value || '';
+  applySearch();
+}
+
+async function setTab(id){
+  TABS.forEach(tab => {
+    document.getElementById(`tab_${tab}`).style.display = tab === id ? 'block' : 'none';
+    document.getElementById(`btn_${tab}`).classList.toggle('active', tab === id);
+  });
+  state.currentTab = id;
+  await LOADERS[id]();
+  applySearch();
+}
+
+function refreshCurrentTab(){
+  state.loaded[state.currentTab] = false;
+  LOADERS[state.currentTab](true);
+}
+
+function openModal(title, html){
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.querySelectorAll('#modal-body pre code').forEach(block => window.hljs && hljs.highlightElement(block));
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.getElementById('modal-body').innerHTML = '';
+}
+
+function askConfirm(title, message, fn){
+  state.confirmAction = fn;
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-name').textContent = message;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+
+function cancelDelete(){
+  state.confirmAction = null;
+  document.getElementById('confirm-overlay').classList.remove('open');
+}
+
+document.getElementById('confirm-yes').addEventListener('click', async () => {
+  const fn = state.confirmAction;
+  cancelDelete();
+  if (fn) await fn();
+});
+
+function statHtml(icon, label, main, sub){
+  return `
+    <div class="head"><span>${icon}</span><span>${escapeHtml(label)}</span></div>
+    <div class="main">${escapeHtml(main)}</div>
+    <div class="sub">${escapeHtml(sub)}</div>
+  `;
+}
+
+async function statsPulse(){
+  try {
+    const data = await fetchJson('/api/system');
+    state.data.systemLive = data;
+    document.getElementById('sys_time').textContent = `${data.hostname || 'VPS'} · ${new Date().toLocaleString()}`;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function numericOrZero(value){
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
+function reminderUrgency(reminder){
+  const when = reminder.when || '';
+  const status = String(reminder.status || '').toLowerCase();
+  if (status === 'done') return 'low';
+  if (!when) return 'medium';
+  const ts = Date.parse(when);
+  if (Number.isNaN(ts)) return 'medium';
+  const diff = ts - Date.now();
+  if (diff < 0) return 'critical';
+  if (diff < 60 * 60 * 1000) return 'high';
+  if (diff < 24 * 60 * 60 * 1000) return 'medium';
+  return 'low';
+}
+
+function sortItems(items, key){
+  const list = [...items];
+  list.sort((a,b) => {
+    if (key === 'importance' || key === 'priority') {
+      const ak = PRIORITY_ORDER[String(a[key] || a.importance || '').toLowerCase()] ?? 99;
+      const bk = PRIORITY_ORDER[String(b[key] || b.importance || '').toLowerCase()] ?? 99;
+      if (ak !== bk) return ak - bk;
+    }
+    if (key === 'status') {
+      const ak = STATUS_ORDER[String(a.status || '').toLowerCase()] ?? 99;
+      const bk = STATUS_ORDER[String(b.status || '').toLowerCase()] ?? 99;
+      if (ak !== bk) return ak - bk;
+    }
+    if (['cpu','mem_mb','restarts','file_count','size_bytes','step_count'].includes(key)) {
+      return numericOrZero(b[key]) - numericOrZero(a[key]) || String(a.name || '').localeCompare(String(b.name || ''));
+    }
+    if (key === 'days_left') {
+      const av = a.days_left == null ? 9999 : numericOrZero(a.days_left);
+      const bv = b.days_left == null ? 9999 : numericOrZero(b.days_left);
+      return av - bv || String(a.name || '').localeCompare(String(b.name || ''));
+    }
+    if (['updated_at','script_updated_at','created_at','last_updated','expiry'].includes(key)) {
+      return String(b[key] || '').localeCompare(String(a[key] || '')) || String(a.name || '').localeCompare(String(b.name || ''));
+    }
+    if (key === 'group') {
+      return String(a.group || '').localeCompare(String(b.group || ''), 'vi', { sensitivity: 'base' }) || String(a.name || '').localeCompare(String(b.name || ''), 'vi', { sensitivity: 'base' });
+    }
+    return String(a[key] || '').localeCompare(String(b[key] || ''), 'vi', { numeric: true, sensitivity: 'base' });
+  });
+  return list;
+}
+
+function encodeObj(obj){
+  return encodeURIComponent(JSON.stringify(obj));
+}
+
+function viewRawObject(title, encodedJson){
+  const obj = JSON.parse(decodeURIComponent(encodedJson));
+  openModal(title, `<div class="json-box"><pre>${escapeHtml(JSON.stringify(obj, null, 2))}</pre></div>`);
+}
+
+function lookupItem(kind, encodedKey){
+  const key = decodeURIComponent(encodedKey);
+  const items = state.data[kind] || [];
+  return Array.isArray(items) ? items.find(item => item.name === key || item.key === key) : null;
+}
+
+function viewJsonModal(kind, encodedKey){
+  const item = lookupItem(kind, encodedKey);
+  if (!item) return openModal('Chi tiết', emptyHtml('Không tìm thấy item trong cache.'));
+  const labels = { missions: 'Nhiệm vụ', skills: 'Script', git: 'Package', backup: 'Backup target' };
+  openModal(`${labels[kind] || 'Item'}: ${item.name || item.key || 'unknown'}`, `<div class="json-box"><pre>${escapeHtml(JSON.stringify(item, null, 2))}</pre></div>`);
+}
+
+function toggleDetails(kind, open){
+  document.querySelectorAll(`#tab_${kind} details.group-section`).forEach(node => { node.open = open; });
+}
+
+function renderGroupDetails(kind, grouped, cardRenderer, gridClass = 'card-grid'){
+  const entries = Object.entries(grouped).sort((a,b) => a[0].localeCompare(b[0], 'vi', { sensitivity: 'base' }));
+  return entries.map(([group, items]) => `
+    <details class="group-section ${toneClass(kind, group)}" open>
+      <summary><span>${groupIcon(group)} ${escapeHtml(group)}</span><span class="muted">${items.length} mục</span></summary>
+      <div class="group-body"><div class="${gridClass}" data-kind="${escapeHtml(kind)}" data-count="${items.length}">${items.map(cardRenderer).join('')}</div></div>
+    </details>
+  `).join('');
+}
+
+function groupBy(items, key){
+  const grouped = {};
+  items.forEach(item => {
+    const group = item[key] || 'Khác';
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(item);
+  });
+  return grouped;
+}
+
+function overviewAlertCard(item){
+  return `
+    <div class="dense-card ${toneClass(item.group, item.title, item.level)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">${item.icon} <span class="name-accent">${escapeHtml(item.title)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.group)}</div>
+        </div>
+        <div class="actions">
+          ${priorityBadge(item.level, 'Mức độ')}
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Tóm tắt</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(item.summary, 120))}</div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Chi tiết</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(item.detail, 120))}</div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn mini-primary" onclick="setTab('${item.tab}')">Mở tab</button>
+      </div>
+    </div>
+  `;
+}
+
+function buildOverviewAlerts(system, missions, remindersData, tokens, backups){
+  const alerts = [];
+  const overdue = (remindersData.reminders || []).filter(item => reminderUrgency(item) === 'critical');
+  const warnTokens = tokens.filter(item => ['warning','expired'].includes(String(item.status || '').toLowerCase()));
+  const hotMissions = missions.filter(item => numericOrZero(item.restarts) >= 3 || numericOrZero(item.mem_mb) >= 150 || numericOrZero(item.cpu) >= 30);
+  const staleBackups = backups.filter(item => !item.last_updated);
+
+  alerts.push({
+    icon: '🚀',
+    title: 'Tiến trình cần chú ý',
+    group: 'Nhiệm vụ',
+    level: hotMissions.length ? 'high' : 'low',
+    levelLabel: hotMissions.length ? 'Cao' : 'Thấp',
+    summary: `${hotMissions.length} mission có restart cao hoặc dùng tài nguyên lớn.`,
+    detail: hotMissions.length ? hotMissions.slice(0, 3).map(item => `${item.name} (${item.restarts} restart, ${item.mem_mb} MB)`).join(' | ') : 'Chưa thấy mission nổi bật bất thường.',
+    tab: 'missions',
+  });
+
+  alerts.push({
+    icon: '⏰',
+    title: 'Nhắc việc quá hạn',
+    group: 'Nhắc việc',
+    level: overdue.length ? 'critical' : 'low',
+    levelLabel: overdue.length ? 'Rất cao' : 'Thấp',
+    summary: `${overdue.length} reminder đã quá hạn.`,
+    detail: overdue.length ? overdue.slice(0, 2).map(item => item.text || item.id || 'Reminder').join(' | ') : 'Không có reminder quá hạn.',
+    tab: 'reminders',
+  });
+
+  alerts.push({
+    icon: '🔑',
+    title: 'Khoá/API cần xử lý',
+    group: 'Khoá/API',
+    level: warnTokens.length ? 'high' : 'low',
+    levelLabel: warnTokens.length ? 'Cao' : 'Thấp',
+    summary: `${warnTokens.length} token đang warning hoặc expired.`,
+    detail: warnTokens.length ? warnTokens.map(item => `${item.name}: ${statusLabel(item.status)}`).join(' | ') : 'Các token hiện chưa có cảnh báo.',
+    tab: 'tokens',
+  });
+
+  alerts.push({
+    icon: '🛡️',
+    title: 'Điểm sao lưu',
+    group: 'Sao lưu',
+    level: staleBackups.length ? 'medium' : 'low',
+    levelLabel: staleBackups.length ? 'Vừa' : 'Thấp',
+    summary: `${backups.length} mục sao lưu khả dụng.`,
+    detail: staleBackups.length ? `${staleBackups.length} mục chưa có mốc cập nhật gần nhất.` : 'Các mục backup đều có dấu hiệu dữ liệu hiện hữu.',
+    tab: 'backup',
+  });
+
+  return alerts;
+}
+
+function toggleOverviewLogs(open){
+  document.querySelectorAll('#overview_logs details.log-row').forEach(node => { node.open = open; });
+}
+
+function openclawLogRow(item){
+  const merged = [...(item.error_lines || []).slice(-4), ...(item.out_lines || []).slice(-4)].slice(-8);
+  const summary = truncateText(item.last_line || 'Chưa có log', 120);
+  return `
+    <details class="log-row ${toneClass(item.name, item.error_count ? 'warning' : 'openclaw')} searchable-item" data-search="${escapeHtml(searchBlob(item))}" ${item.error_count ? 'open' : ''}>
+      <summary>
+        <div class="log-col-title">
+          <span>📜</span>
+          <span class="name-accent">${escapeHtml(item.name)}</span>
+        </div>
+        <div class="log-col-sub">${escapeHtml(item.error_count ? 'Có log lỗi gần đây' : 'Output hoạt động')}</div>
+        <div class="log-col-main">${badge(item.error_count ? `Log lỗi: ${item.error_count}` : 'Log: Hoạt động', item.error_count ? 'b-status-warning' : 'b-status-online')}</div>
+        <div class="log-col-main truncate-1">${escapeHtml(summary)}</div>
+        <div class="log-actions">
+          <button class="mini-btn mini-primary" type="button" onclick="event.preventDefault(); event.stopPropagation(); setTab('dashboard')">Mở Cổng</button>
+        </div>
+      </summary>
+      <div class="log-body">
+        <div class="field-col">
+          <div class="field-label">Action gần nhất</div>
+          <div class="field-value truncate-2">${escapeHtml(summary)}</div>
+        </div>
+        <div class="field-col" style="margin-top:8px;">
+          <div class="field-label">Log gần đây</div>
+          <pre class="log-snippet">${escapeHtml(merged.join('\n') || 'Chưa có log.')}</pre>
+        </div>
+        <div class="actions" style="margin-top:8px;">
+          ${badge(item.error_count ? `Số lỗi log: ${item.error_count}` : 'Log: Hoạt động', item.error_count ? 'b-status-warning' : 'b-status-online')}
+          ${badge(item.has_activity ? 'Activity: Có' : 'Activity: Chưa có', item.has_activity ? 'b-kind' : 'b-priority-low')}
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function renderOverview(data){
+  const { system, missions, remindersData, tokens, backups, openclawLogs } = data;
+  const alerts = buildOverviewAlerts(system, missions, remindersData, tokens, backups);
+  document.getElementById('overview_summary').innerHTML = keySummary({
+    'CPU': { value: `${system.cpu_pct || 0}%`, sub: `Load ${system.load || '-'} · Host ${system.hostname || '-'}`, tone: 'cpu info' },
+    'RAM': { value: `${system.ram_pct || 0}%`, sub: `${system.ram_used_mb || 0}/${system.ram_total_mb || 0} MB · Trống ${system.ram_free_mb || 0} MB`, tone: 'ram memory' },
+    'Disk': { value: `${system.disk_pct || 0}%`, sub: `${system.disk_used || '-'} / ${system.disk_total || '-'} · Còn ${system.disk_free || '-'}`, tone: 'disk warning storage' },
+    'Uptime': { value: `${system.uptime || '-'}`, sub: 'thời gian hoạt động VPS', tone: 'uptime system indigo' },
+    'Mission online': { value: missions.length, sub: 'PM2 process đang theo dõi', tone: 'mission process violet' },
+    'Reminder quá hạn': { value: (remindersData.reminders || []).filter(item => reminderUrgency(item) === 'critical').length, sub: 'cần xử lý ngay', tone: 'reminder overdue rose' },
+    'Token cảnh báo': { value: tokens.filter(item => ['warning','expired'].includes(String(item.status || '').toLowerCase())).length, sub: 'warning / expired', tone: 'token warning amber' },
+    'Backup': { value: backups.length, sub: 'mục backup khả dụng', tone: 'backup lime' },
+  });
+  document.getElementById('overview_groups').innerHTML = [
+    `<span class="group-chip ${toneClass('mission')}">🚀 Mission <strong>${missions.length}</strong></span>`,
+    `<span class="group-chip ${toneClass('skill')}">🧩 Skill <strong>${(state.data.skills || []).length || '-'}</strong></span>`,
+    `<span class="group-chip ${toneClass('reminder')}">⏰ Reminder <strong>${(remindersData.reminders || []).length}</strong></span>`,
+    `<span class="group-chip ${toneClass('backup')}">🛡️ Backup <strong>${backups.length}</strong></span>`,
+  ].join('');
+  renderControls('overview_controls', [
+    `<span class="group-chip ${toneClass('overview openclaw system')}">Ưu tiên theo mức độ ảnh hưởng hiện tại của hệ thống và hành động gần nhất của OpenClaw</span>`,
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="refreshCurrentTab()">Reload tổng quan</button>',
+  ]);
+  document.getElementById('overview_table').innerHTML = `
+    <div class="card-grid-tight">${alerts.map(overviewAlertCard).join('')}</div>
+  `;
+  document.getElementById('overview_logs').innerHTML = `
+    <div class="panel-head" style="margin-top:12px;margin-bottom:6px;">
+      <div>
+        <div class="section-title" style="margin:0;">📜 Log OpenClaw / Action gần đây</div>
+        <div class="muted tiny">Dạng hàng ngang, mở rộng khi cần, ưu tiên đọc bao quát.</div>
+      </div>
+      <div class="action-row">
+        <button class="btn" onclick="toggleOverviewLogs(true)">Mở hết</button>
+        <button class="btn" onclick="toggleOverviewLogs(false)">Thu gọn</button>
+      </div>
+    </div>
+    <div class="log-list">${(openclawLogs || []).map(openclawLogRow).join('')}</div>
+  `;
+  applySearch();
+}
+
+async function loadOverview(force){
+  if (state.loaded.overview && !force) return renderOverview(state.data.overview);
+  document.getElementById('overview_table').innerHTML = emptyHtml('Đang tải tổng quan...');
+  document.getElementById('overview_logs').innerHTML = '';
+  try {
+    const [system, missions, remindersData, tokens, backups, openclawLogs] = await Promise.all([
+      fetchJson('/api/system'),
+      fetchJson('/api/missions'),
+      fetchJson('/api/reminders'),
+      fetchJson('/api/tokens'),
+      fetchJson('/api/backup-targets'),
+      fetchJson('/api/logs/openclaw'),
+    ]);
+    state.data.overview = { system, missions, remindersData, tokens, backups, openclawLogs };
+    state.loaded.overview = true;
+    renderOverview(state.data.overview);
+  } catch (error) {
+    document.getElementById('overview_table').innerHTML = emptyHtml(`Lỗi tải tổng quan: ${error.message}`);
+    document.getElementById('overview_logs').innerHTML = '';
+  }
+}
+
+function missionCard(item){
+  const steps = (item.steps || []).slice(0, 3).map(step => `<span class="tag">${escapeHtml(truncateText(step, 28))}</span>`).join('');
+  return `
+    <div class="dense-card mission-card ${toneClass(item.group, item.importance, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">${dotForStatus(item.status)} <span class="name-accent">${escapeHtml(item.name)}</span></div>
+          <div class="card-sub mono truncate-1">${escapeHtml(item.script_name || '-')}</div>
+        </div>
+      <div class="actions">
+        ${statusBadge(item.status)}
+        ${priorityBadge(item.importance)}
+      </div>
+      </div>
+      <div class="pill-row">
+        <span class="kv-pill"><strong>Uptime</strong> ${escapeHtml(item.uptime || '-')}</span>
+        <span class="kv-pill"><strong>CPU</strong> ${escapeHtml(item.cpu)}%</span>
+        <span class="kv-pill"><strong>RAM</strong> ${escapeHtml(item.mem_mb)} MB</span>
+        <span class="kv-pill"><strong>Restart</strong> ${escapeHtml(item.restarts)}</span>
+      </div>
+      <div class="mission-detail-grid">
+        <div class="field-col span-2"><div class="field-label">Script</div><div class="field-value mono truncate-1">${escapeHtml(shortPath(item.script || '-', 72))}</div></div>
+        <div class="field-col"><div class="field-label">Cập nhật</div><div class="field-value truncate-1">${escapeHtml(item.script_updated_at || '-')}</div></div>
+        <div class="field-col span-2"><div class="field-label">Thư mục</div><div class="field-value mono truncate-1">${escapeHtml(shortPath(item.cwd || '-', 68))}</div></div>
+        <div class="field-col"><div class="field-label">Mode</div><div class="field-value truncate-1">${escapeHtml(item.exec_mode || '-')}</div></div>
+        <div class="field-col span-3">
+          <div class="field-label">Mô tả</div>
+          <div class="field-value truncate-2">${escapeHtml(truncateText(item.desc || '-', 160))}</div>
+        </div>
+      </div>
+      <div class="tag-row">
+        ${labeledBadge('Nhóm', item.group || 'Khác')}
+        ${labeledBadge('PID', item.pid || '-')}
+        ${labeledBadge('Bước', item.step_count || 0)}
+        ${steps}
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewJsonModal('missions', '${encodeURIComponent(item.name)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function setMissionSort(value){ state.ui.missions.sort = value; renderMissions(); }
+
+function renderMissions(){
+  const items = sortItems(state.data.missions || [], state.ui.missions.sort);
+  document.getElementById('missions_summary').innerHTML = keySummary({
+    'Nhiệm vụ': { value: items.length, sub: 'PM2 process', tone: 'mission violet' },
+    'Rất cao': { value: items.filter(x => x.importance === 'critical').length, sub: 'mức quan trọng cao nhất', tone: 'priority critical warning' },
+    'CPU tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.cpu), 0).toFixed(1)}%`, sub: 'tức thời', tone: 'cpu info' },
+    'RAM tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.mem_mb), 0).toFixed(1)} MB`, sub: 'theo PM2', tone: 'ram memory' },
+    'Restart': { value: items.reduce((sum,x) => sum + numericOrZero(x.restarts), 0), sub: 'cộng dồn', tone: 'restart amber warning' },
+  });
+  document.getElementById('missions_groups').innerHTML = renderGroupStrip(items, 'group');
+  renderControls('missions_controls', [
+    selectControl('Sắp xếp', state.ui.missions.sort, [
+      { value: 'importance', label: 'Ưu tiên' },
+      { value: 'group', label: 'Nhóm' },
+      { value: 'name', label: 'Tên' },
+      { value: 'cpu', label: 'CPU' },
+      { value: 'mem_mb', label: 'RAM' },
+      { value: 'restarts', label: 'Restart' },
+    ], 'setMissionSort'),
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'missions\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'missions\', false)">Thu gọn</button>',
+  ]);
+  document.getElementById('missions_table').innerHTML = items.length ? renderGroupDetails('missions', groupBy(items, 'group'), missionCard, 'card-grid') : emptyHtml('Không có tiến trình nào.');
+  applySearch();
+}
+
+async function loadMissions(force){
+  if (state.loaded.missions && !force) return renderMissions();
+  document.getElementById('missions_table').innerHTML = emptyHtml('Đang tải nhiệm vụ...');
+  try {
+    state.data.missions = await fetchJson('/api/missions');
+    state.loaded.missions = true;
+    renderMissions();
+  } catch (error) {
+    document.getElementById('missions_table').innerHTML = emptyHtml(`Lỗi tải nhiệm vụ: ${error.message}`);
+  }
+}
+
+function meter(pct, status){
+  if (pct == null) return '<div class="meter"><span style="width:100%"></span></div>';
+  const cls = /(expired|critical)/i.test(status || '') || pct < 15 ? 'danger' : pct < 40 ? 'warn' : '';
+  return `<div class="meter ${cls}"><span style="width:${Math.max(0, Math.min(100, pct))}%"></span></div>`;
+}
+
+function normalizeProviderName(value){
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g,'');
+}
+
+function tokenCard(item){
+  const daysLeft = item.days_left == null ? 'Không giới hạn' : `${item.days_left} ngày`;
+  const totalDays = item.total_days == null ? 'Không rõ tổng hạn' : `${item.total_days} ngày`;
+  return `
+    <div class="dense-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">🔑 <span class="name-accent">${escapeHtml(item.name)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.provider || '-') } · ${escapeHtml(item.type || '-')}</div>
+        </div>
+        <div class="actions">
+          ${statusBadge(item.status)}
+          ${priorityBadge(item.priority)}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Mã nhận diện</div><div class="field-value mono truncate-1">${escapeHtml(item.info || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Hết hạn</div><div class="field-value truncate-1">${escapeHtml(item.expiry || 'Không có')}</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Còn lại</div><div class="field-value">${escapeHtml(daysLeft)}</div></div>
+        <div class="field-col"><div class="field-label">Chu kỳ tổng</div><div class="field-value">${escapeHtml(totalDays)}</div></div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Thanh đếm ngược</div>
+        ${meter(item.pct_left, item.status)}
+        <div class="field-value tiny">${item.pct_left == null ? 'Token này không có dữ liệu thời hạn đầy đủ.' : `${item.pct_left}% thời gian còn lại`}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Cấp</div><div class="field-value">${escapeHtml(item.provider || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Khởi tạo</div><div class="field-value truncate-1">${escapeHtml(item.issued_at || 'Không rõ')}</div></div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function unusedApiCard(item){
+  return `
+    <div class="dense-card ${toneClass('api', item.provider, item.group)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">🧪 <span class="name-accent">${escapeHtml(item.provider)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.group)}</div>
+        </div>
+        <div class="actions">
+          ${badge('Mức dùng: Chưa dùng', 'b-status-expired')}
+          ${badge('Cấu hình: Chưa có', 'b-priority-low')}
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Mô tả</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(item.desc, 120))}</div>
+      </div>
+      <div class="tag-row">
+        ${labeledBadge('Nhóm', item.group)}
+        ${badge('Loại: OpenClaw provider')}
+      </div>
+    </div>
+  `;
+}
+
+function setTokenSort(value){ state.ui.tokens.sort = value; renderTokens(); }
+function setTokenScope(value){ state.ui.tokens.scope = value; renderTokens(); }
+
+function renderTokens(){
+  const actual = sortItems(state.data.tokens || [], state.ui.tokens.sort);
+  const usedKeys = new Set(actual.map(item => normalizeProviderName(item.provider || item.name)));
+  const unused = TOKEN_CATALOG.filter(item => !usedKeys.has(normalizeProviderName(item.provider)));
+  let configured = actual;
+  let missing = unused;
+  if (state.ui.tokens.scope === 'used') missing = [];
+  if (state.ui.tokens.scope === 'unused') configured = [];
+  document.getElementById('tokens_summary').innerHTML = keySummary({
+    'Đang dùng': { value: actual.length, sub: 'token / credential', tone: 'token success' },
+    'Chưa xài': { value: unused.length, sub: 'API dự kiến chưa cấu hình', tone: 'token unused slate' },
+    'Cảnh báo': { value: actual.filter(x => String(x.status).toLowerCase() === 'warning').length, sub: 'sắp hết hạn', tone: 'warning amber token' },
+    'Hết hạn': { value: actual.filter(x => String(x.status).toLowerCase() === 'expired').length, sub: 'cần làm mới', tone: 'expired rose token' },
+    'Có hạn': { value: actual.filter(x => x.days_left != null).length, sub: 'có đếm ngược', tone: 'info indigo token' },
+  });
+  renderControls('tokens_controls', [
+    selectControl('Sắp xếp', state.ui.tokens.sort, [
+      { value: 'priority', label: 'Ưu tiên' },
+      { value: 'days_left', label: 'Còn lại' },
+      { value: 'provider', label: 'Nhà cung cấp' },
+      { value: 'status', label: 'Trạng thái' },
+      { value: 'expiry', label: 'Hết hạn' },
+    ], 'setTokenSort'),
+    selectControl('Phạm vi', state.ui.tokens.scope, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'used', label: 'Đang dùng' },
+      { value: 'unused', label: 'Chưa xài' },
+    ], 'setTokenScope'),
+  ]);
+  const groups = [];
+  if (configured.length) groups.push(`
+    <details class="group-section ${toneClass('token đang dùng')}" open>
+      <summary><span>✅ Token đang dùng</span><span class="muted">${configured.length} mục</span></summary>
+      <div class="group-body"><div class="card-grid-tight">${configured.map(tokenCard).join('')}</div></div>
+    </details>
+  `);
+  if (missing.length) groups.push(`
+    <details class="group-section ${toneClass('api chưa xài')}" open>
+      <summary><span>🧪 API chưa xài</span><span class="muted">${missing.length} mục</span></summary>
+      <div class="group-body"><div class="card-grid-tight">${missing.map(unusedApiCard).join('')}</div></div>
+    </details>
+  `);
+  document.getElementById('tokens_table').innerHTML = groups.join('') || emptyHtml('Không có token nào.');
+  applySearch();
+}
+
+async function loadTokens(force){
+  if (state.loaded.tokens && !force) return renderTokens();
+  document.getElementById('tokens_table').innerHTML = emptyHtml('Đang tải token...');
+  try {
+    state.data.tokens = await fetchJson('/api/tokens');
+    state.loaded.tokens = true;
+    renderTokens();
+  } catch (error) {
+    document.getElementById('tokens_table').innerHTML = emptyHtml(`Lỗi tải token: ${error.message}`);
+  }
+}
+
+function telegramKindLabel(kind){
+  if (kind === 'group') return 'Nhóm';
+  if (kind === 'user') return 'User / DM';
+  if (kind === 'default') return 'Mặc định';
+  return 'Khác';
+}
+
+function telegramPolicyValue(type, value){
+  const raw = String(value || '').trim();
+  const key = raw.toLowerCase();
+  if (type === 'group_policy'){
+    if (key === 'allowlist') return 'Chỉ các nhóm nằm trong danh sách cho phép';
+    if (key === 'open') return 'Mọi nhóm đều có thể dùng';
+  }
+  if (type === 'dm_policy'){
+    if (key === 'pairing') return 'Tin nhắn riêng chỉ dùng sau khi đã ghép cặp';
+    if (key === 'allow') return 'Tin nhắn riêng được phép ngay';
+    if (key === 'deny') return 'Tin nhắn riêng đang bị chặn';
+  }
+  if (type === 'dm_scope'){
+    if (key === 'per-channel-peer') return 'Mỗi người nhắn riêng sẽ có ngữ cảnh tách riêng';
+    if (key === 'shared') return 'Tin nhắn riêng dùng chung một ngữ cảnh';
+  }
+  if (type === 'streaming'){
+    if (key === 'partial') return 'Bot trả lời dần từng phần';
+    if (key === 'full') return 'Bot chỉ trả lời khi hoàn tất toàn bộ';
+  }
+  if (type === 'exec_target'){
+    if (key === 'both') return 'Áp dụng cho cả nhóm và tin nhắn riêng';
+    if (key === 'group') return 'Chỉ áp dụng trong nhóm';
+    if (key === 'dm') return 'Chỉ áp dụng trong tin nhắn riêng';
+  }
+  if (type === 'approval_mode'){
+    if (key === 'session') return 'Quyền duyệt gắn theo từng phiên làm việc';
+  }
+  return raw || '-';
+}
+
+function telegramSourceLabel(source){
+  const text = String(source || '');
+  if (text.startsWith('Cấu hình live / groups')) return 'Config Telegram đang chạy';
+  if (text.startsWith('Cấu hình live / allowFrom')) return 'Danh sách ID được phép trong group live';
+  if (text === 'approvals.exec.targets') return 'Đích nhận yêu cầu duyệt lệnh';
+  if (text === 'workspace/bot_identity.md') return 'File nhận diện bot';
+  if (text.startsWith('memory/')) return `Nhật ký ghi nhớ: ${text.replace(/^memory\//,'')}`;
+  if (text.startsWith('snapshot/')) return `Snapshot cấu hình cũ: ${text.replace(/^snapshot\//,'')}`;
+  return text || '-';
+}
+
+function telegramActorTitle(item){
+  const kind = item.kind_label || telegramKindLabel(item.kind);
+  if (item.kind === 'user') return `User/Admin ${item.id || '-'}`;
+  if (item.kind === 'group') return `Nhóm Telegram ${item.id || '-'}`;
+  if (item.kind === 'default') return 'Chính sách mặc định (*)';
+  return `${kind} ${item.id || '-'}`;
+}
+
+function telegramActorMeaning(item){
+  const role = String(item.role || '');
+  if (role.includes('Admin / chủ bot')) return 'Đây là user/admin từng được ghi nhận rõ trong file nhận diện bot hoặc memory.';
+  if (role.includes('Đích nhận exec approval')) return 'Đây là nơi bot gửi yêu cầu duyệt lệnh thực thi.';
+  if (role.includes('ID được phép trong nhóm')) return 'Đây là ID được phép thao tác trong một nhóm cụ thể.';
+  if (role.includes('Chat đang có trong config live')) return 'Đây là chat đang có thật trong config Telegram hiện tại.';
+  if (role.includes('Schema cũ / allowedChats')) return 'Đây là chat xuất hiện trong schema cũ allowedChats để đối chiếu lịch sử.';
+  if (role.includes('Nhóm Telegram được nhắc tới')) return 'Đây là group ID xuất hiện trong memory hoặc ghi chú cũ.';
+  if (role.includes('Admin được nhắc tới')) return 'Đây là user ID admin từng được nhắc trong memory hoặc ghi chú cũ.';
+  if (role.includes('Nhật ký Telegram')) return 'Đây là ID Telegram được lấy từ nhật ký/memory lịch sử.';
+  return role || 'Ứng viên Telegram được gom từ nhiều nguồn.';
+}
+
+function telegramQuickNotes(config, groups, actors){
+  const liveGroup = groups.find(item => item.id !== '*' && item.source === 'live');
+  const recordedAdmins = actors.filter(item => item.kind === 'user');
+  const legacyGroups = actors.filter(item => item.kind === 'group' && !item.current);
+  const notes = [];
+  notes.push({
+    title: 'Bot Telegram hiện đang mở',
+    value: config.enabled ? 'Đang bật' : 'Đang tắt',
+    sub: config.enabled ? 'Bot đang nhận lệnh qua Telegram.' : 'Kênh Telegram hiện chưa bật.',
+    tone: config.enabled ? 'telegram success' : 'telegram slate',
+    icon: '🤖',
+  });
+  notes.push({
+    title: 'Nhóm được phép hiện tại',
+    value: liveGroup ? liveGroup.id : 'Chưa thấy',
+    sub: liveGroup ? 'Đây là group Telegram đang có trong config live.' : 'Không thấy group live cụ thể trong config.',
+    tone: 'telegram violet',
+    icon: '💬',
+  });
+  notes.push({
+    title: 'Admin/User từng ghi nhận',
+    value: recordedAdmins.length ? recordedAdmins.map(item => item.id).slice(0, 2).join(' · ') : 'Chưa thấy',
+    sub: recordedAdmins.length ? 'Các user ID này xuất hiện trong bot_identity hoặc memory lịch sử.' : 'Chưa tìm được user/admin ID rõ ràng.',
+    tone: 'telegram indigo',
+    icon: '👤',
+  });
+  notes.push({
+    title: 'Tin nhắn riêng (DM)',
+    value: telegramPolicyValue('dm_policy', config.dm_policy),
+    sub: telegramPolicyValue('dm_scope', config.dm_scope),
+    tone: 'telegram cyan',
+    icon: '📩',
+  });
+  notes.push({
+    title: 'Duyệt lệnh thực thi',
+    value: config.exec_approvals_enabled ? 'Đang bật' : 'Đang tắt',
+    sub: config.exec_approvals_enabled ? `Đích duyệt hiện tại: ${(config.exec_targets || []).join(', ') || '-'}` : 'Hiện chưa bật duyệt lệnh qua Telegram.',
+    tone: config.exec_approvals_enabled ? 'telegram amber' : 'telegram slate',
+    icon: '✅',
+  });
+  if (legacyGroups.length){
+    notes.push({
+      title: 'Nhóm lịch sử cần đối chiếu',
+      value: legacyGroups[0].id,
+      sub: 'ID này xuất hiện trong memory hoặc snapshot cũ, cần phân biệt với nhóm live hiện tại.',
+      tone: 'telegram rose',
+      icon: '🗂️',
+    });
+  }
+  return notes;
+}
+
+function telegramLiveRule(item){
+  if (!item) return 'Chưa tìm thấy nhóm live cụ thể trong config.';
+  const mentionText = item.require_mention ? 'phải nhắc tên bot' : 'không cần nhắc tên bot';
+  if (item.allow_from_any) return `Trong nhóm này, mọi người trong group đều có thể dùng bot và ${mentionText}.`;
+  if ((item.allow_from_count || 0) > 0) return `Trong nhóm này, chỉ các ID đã ghi trong allowFrom mới dùng được bot và ${mentionText}.`;
+  return `Trong nhóm này hiện chưa thấy allowFrom rõ ràng; cần kiểm tra lại rule thực tế.`;
+}
+
+function telegramAdminConclusion(actors){
+  const currentUsers = actors.filter(item => item.kind === 'user' && item.current);
+  const recordedUsers = actors.filter(item => item.kind === 'user');
+  if (currentUsers.length) return `Config live đang ghi nhận ${currentUsers.length} user/admin dùng trực tiếp: ${currentUsers.map(item => item.id).join(', ')}.`;
+  if (recordedUsers.length) return `Chưa thấy user/admin được ghi trực tiếp trong config live; hiện chỉ còn dấu vết lịch sử như ${recordedUsers.slice(0,2).map(item => item.id).join(', ')}.`;
+  return 'Chưa tìm được user/admin ID rõ ràng trong config live hoặc dữ liệu lịch sử.';
+}
+
+function telegramConflictConclusion(groups, actors){
+  const liveGroup = groups.find(item => item.id !== '*' && item.source === 'live');
+  const historyGroups = actors.filter(item => item.kind === 'group' && !item.current).map(item => item.id);
+  const conflict = liveGroup && historyGroups.find(id => id !== liveGroup.id);
+  if (conflict) return `Có ít nhất 1 group ID lịch sử khác với group live hiện tại: ${conflict}.`;
+  return 'Chưa thấy xung đột group ID nổi bật giữa cấu hình live và lịch sử.';
+}
+
+function telegramConfigCard(title, value, sub, tone, icon = '⚙️'){
+  return `
+    <div class="dense-card ${toneClass('telegram config', tone, title)} searchable-item" data-search="${escapeHtml(`${title} ${value} ${sub}`)}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">${icon} <span class="name-accent">${escapeHtml(title)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(sub || '')}</div>
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Giá trị</div>
+        <div class="field-value truncate-2">${escapeHtml(value || '-')}</div>
+      </div>
+    </div>
+  `;
+}
+
+function telegramGroupCard(item){
+  const allowPreview = item.allow_from_any ? 'Mọi ID (*)' : (item.allow_from || []).join(', ') || 'Không có';
+  const groupTitle = item.id === '*' ? 'Chính sách mặc định cho các group chưa khai báo riêng' : `Nhóm Telegram ${item.id || '-'}`;
+  const groupSub = item.id === '*' ? 'Rule mặc định áp cho group chưa có cấu hình riêng.' : (item.is_exec_target ? 'Đây cũng là nơi nhận yêu cầu duyệt lệnh.' : 'Đây là group đang có trong config live.');
+  return `
+    <div class="dense-card ${toneClass('telegram group', item.kind, item.is_exec_target ? 'approval' : '', item.require_mention ? 'mention' : 'open')} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-2">💬 <span class="name-accent">${escapeHtml(groupTitle)}</span></div>
+          <div class="card-sub truncate-2">${escapeHtml(groupSub)}</div>
+        </div>
+        <div class="actions">
+          ${boolLabeledBadge('Nhắc tên bot', item.require_mention, 'Bắt buộc', 'Không cần')}
+          ${boolLabeledBadge('Nhận duyệt lệnh', item.is_exec_target, 'Có', 'Không')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col">
+          <div class="field-label">Ai được phép dùng trong group này</div>
+          <div class="field-value truncate-2">${escapeHtml(truncateText(allowPreview, 84))}</div>
+        </div>
+        <div class="field-col">
+          <div class="field-label">Số ID ghi rõ</div>
+          <div class="field-value">${escapeHtml(item.allow_from_count ?? 0)}</div>
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Cách hiểu</div>
+        <div class="field-value truncate-2">${escapeHtml(telegramLiveRule(item))}</div>
+      </div>
+      <div class="tag-row">
+        ${labeledBadge('Loại chat', item.kind_label || telegramKindLabel(item.kind))}
+        ${item.allow_from_any ? badge('Cho phép: Mọi sender trong group', 'b-status-online') : badge('Cho phép: Chỉ ID cụ thể', 'b-kind')}
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Nhóm Telegram', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function telegramActorCard(item){
+  const excerpts = Array.isArray(item.excerpts) ? item.excerpts.filter(Boolean) : [];
+  const sources = Array.isArray(item.sources) ? item.sources.filter(Boolean) : [];
+  const mappedSources = sources.map(telegramSourceLabel);
+  return `
+    <div class="dense-card ${toneClass('telegram actor', item.kind, item.current ? 'current' : 'history', item.role)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-2">👤 <span class="name-accent">${escapeHtml(telegramActorTitle(item))}</span></div>
+          <div class="card-sub truncate-2">${escapeHtml(telegramActorMeaning(item))}</div>
+        </div>
+        <div class="actions">
+          ${labeledBadge('Loại', item.kind_label || telegramKindLabel(item.kind))}
+          ${boolLabeledBadge('Hiện đang dùng', item.current, 'Có', 'Chỉ thấy trong lịch sử')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col">
+          <div class="field-label">Nguồn đầu tiên tìm thấy</div>
+          <div class="field-value truncate-1">${escapeHtml(mappedSources[0] || '-')}</div>
+        </div>
+        <div class="field-col">
+          <div class="field-label">Số nguồn đối chiếu</div>
+          <div class="field-value">${escapeHtml(item.source_count ?? sources.length)}</div>
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Dòng ghi chú gốc</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(excerpts[0] || 'Không có ghi chú nguồn.', 140))}</div>
+      </div>
+      <div class="tag-row">
+        ${mappedSources.slice(0, 3).map(src => `<span class="tag">${escapeHtml(truncateText(src, 32))}</span>`).join('')}
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Telegram ID / Actor', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function telegramSnapshotCard(item){
+  const schemaLabel = item.schema === 'allowedChats' ? 'Cấu trúc cũ: allowedChats' : item.schema === 'groups' ? 'Cấu trúc mới: groups' : `Schema: ${item.schema || 'unknown'}`;
+  const listPreview = (item.allowed_chats && item.allowed_chats.length ? item.allowed_chats : item.groups || []).join(', ');
+  return `
+    <div class="dense-card ${toneClass('telegram snapshot', item.schema, item.group_policy, item.dm_policy)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-2">🗂️ <span class="name-accent">${escapeHtml(item.file || '-')}</span></div>
+          <div class="card-sub truncate-2">Đây là bản chụp cấu hình cũ để đối chiếu lịch sử, không phải config live.</div>
+        </div>
+        <div class="actions">
+          ${badge(schemaLabel, item.schema === 'allowedChats' ? 'b-status-warning' : 'b-kind')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col">
+          <div class="field-label">Thời điểm file</div>
+          <div class="field-value truncate-1">${escapeHtml(item.updated_at || '-')}</div>
+        </div>
+        <div class="field-col">
+          <div class="field-label">Cách cấu hình chính</div>
+          <div class="field-value truncate-1">${escapeHtml(schemaLabel)}</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col">
+          <div class="field-label">Chính sách nhóm</div>
+          <div class="field-value truncate-1">${escapeHtml(telegramPolicyValue('group_policy', item.group_policy))}</div>
+        </div>
+        <div class="field-col">
+          <div class="field-label">Tin nhắn riêng</div>
+          <div class="field-value truncate-1">${escapeHtml(telegramPolicyValue('dm_policy', item.dm_policy))}</div>
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Chat / Group nhìn thấy trong snapshot</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(listPreview || 'Không có danh sách chat/group.', 140))}</div>
+      </div>
+      <div class="tag-row">
+        ${labeledBadge('allowedChats', item.allowed_chat_count ?? 0)}
+        ${labeledBadge('groups', item.groups_count ?? 0)}
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Snapshot Telegram', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderTelegram(){
+  const data = state.data.telegram || { config: {}, groups: [], actors: [], snapshots: [] };
+  const config = data.config || {};
+  const groups = data.groups || [];
+  const actors = data.actors || [];
+  const snapshots = data.snapshots || [];
+  const users = actors.filter(item => item.kind === 'user');
+  const actorGroups = actors.filter(item => item.kind === 'group' || item.kind === 'default');
+  const liveGroups = groups.filter(item => item.id !== '*');
+  const defaultGroup = groups.find(item => item.id === '*');
+  const quickNotes = telegramQuickNotes(config, groups, actors);
+  const actionCards = [
+    {
+      title: 'Nếu nhắn trong nhóm nào thì bot phản hồi',
+      value: liveGroups.length ? liveGroups.map(item => item.id).join(' · ') : 'Chưa thấy nhóm live',
+      sub: liveGroups.length ? telegramLiveRule(liveGroups[0]) : 'Hiện chưa tìm thấy group Telegram live trong config.',
+      tone: 'telegram violet',
+      icon: '💬',
+    },
+    {
+      title: 'Nếu nhắn riêng cho bot',
+      value: telegramPolicyValue('dm_policy', config.dm_policy),
+      sub: `${telegramPolicyValue('dm_scope', config.dm_scope)}.`,
+      tone: 'telegram cyan',
+      icon: '📩',
+    },
+    {
+      title: 'Admin/User đang có hiệu lực',
+      value: users.filter(item => item.current).length ? users.filter(item => item.current).map(item => item.id).join(' · ') : 'Chưa thấy ID live riêng',
+      sub: telegramAdminConclusion(actors),
+      tone: users.filter(item => item.current).length ? 'telegram success' : 'telegram amber',
+      icon: '👤',
+    },
+    {
+      title: 'Điểm cần chú ý',
+      value: telegramConflictConclusion(groups, actors),
+      sub: defaultGroup ? 'Ngoài ra còn có 1 rule mặc định (*) cho các group chưa khai báo riêng.' : 'Không thấy rule mặc định riêng.',
+      tone: 'telegram rose',
+      icon: '🧭',
+    },
+  ];
+
+  document.getElementById('telegram_summary').innerHTML = keySummary({
+    'Bot Telegram': { value: config.enabled ? 'Đang bật' : 'Đang tắt', sub: `Bot ID ${config.bot_id || '-'}`, tone: config.enabled ? 'telegram success' : 'telegram slate' },
+    'Nhóm đang mở': { value: groups.filter(item => item.id !== '*').length, sub: 'group live trong config hiện tại', tone: 'telegram violet' },
+    'Admin/User ghi nhận': { value: users.length, sub: 'ID user/admin đã gom được', tone: 'telegram indigo' },
+    'Tin nhắn riêng': { value: telegramPolicyValue('dm_policy', config.dm_policy), sub: telegramPolicyValue('dm_scope', config.dm_scope), tone: 'telegram cyan' },
+    'Duyệt lệnh': { value: config.exec_approvals_enabled ? 'Đang bật' : 'Đang tắt', sub: `Đích ${telegramPolicyValue('exec_target', config.exec_approvals_target)}`, tone: config.exec_approvals_enabled ? 'telegram amber' : 'telegram slate' },
+    'Snapshot lịch sử': { value: snapshots.length, sub: 'file cấu hình cũ đã đọc', tone: 'telegram rose' },
+  });
+
+  document.getElementById('telegram_groups').innerHTML = [
+    `<span class="group-chip ${toneClass('telegram enabled')}">💬 Telegram <strong>${config.enabled ? 'Đang bật' : 'Đang tắt'}</strong></span>`,
+    `<span class="group-chip ${toneClass('group policy telegram')}">🧭 Nhóm <strong>${escapeHtml(telegramPolicyValue('group_policy', config.group_policy))}</strong></span>`,
+    `<span class="group-chip ${toneClass('dm policy telegram')}">📩 DM <strong>${escapeHtml(telegramPolicyValue('dm_policy', config.dm_policy))}</strong></span>`,
+    `<span class="group-chip ${toneClass('dm scope telegram')}">🧵 Scope <strong>${escapeHtml(telegramPolicyValue('dm_scope', config.dm_scope))}</strong></span>`,
+    `<span class="group-chip ${toneClass('exec approvals telegram')}">✅ Duyệt lệnh <strong>${config.exec_approvals_enabled ? 'Đang bật' : 'Đang tắt'}</strong></span>`,
+    `<span class="group-chip ${toneClass('streaming telegram')}">🌊 Trả lời <strong>${escapeHtml(telegramPolicyValue('streaming', config.streaming))}</strong></span>`,
+  ].join('');
+
+  renderControls('telegram_controls', [
+    `<span class="group-chip ${toneClass('telegram note policy')}">Tab này đang đọc từ config live + memory + clobbered snapshots. Hiện chỉ để xem và đối chiếu, chưa sửa trực tiếp.</span>`,
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'telegram\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'telegram\', false)">Thu gọn</button>',
+  ]);
+
+  const configCards = [
+    telegramConfigCard('Token bot', config.bot_token_masked || '-', 'Token đã che bớt để nhận diện đúng bot mà không lộ đầy đủ.', 'telegram token', '🔐'),
+    telegramConfigCard('Bot ID', config.bot_id || '-', 'ID bot lấy từ phần đầu bot token.', 'telegram id', '🤖'),
+    telegramConfigCard('Quy tắc cho nhóm', telegramPolicyValue('group_policy', config.group_policy), 'Giải thích cách bot chấp nhận hoặc chặn các group Telegram.', 'telegram policy', '🧭'),
+    telegramConfigCard('Quy tắc tin nhắn riêng', telegramPolicyValue('dm_policy', config.dm_policy), 'Cách bot phản hồi khi user nhắn riêng cho bot.', 'telegram dm', '📩'),
+    telegramConfigCard('Phạm vi ngữ cảnh DM', telegramPolicyValue('dm_scope', config.dm_scope), 'Bot tách hay dùng chung ngữ cảnh khi trao đổi qua DM.', 'telegram scope', '🧵'),
+    telegramConfigCard('Duyệt lệnh thực thi', config.exec_approvals_enabled ? telegramPolicyValue('exec_target', config.exec_approvals_target) : 'Đang tắt', `Mode ${telegramPolicyValue('approval_mode', config.approval_mode)} · agent ${truncateText((config.approval_agent_filter || []).join(', ') || '-', 48)}`, 'telegram approval', '✅'),
+  ];
+
+  document.getElementById('telegram_table').innerHTML = [
+    `<details class="group-section ${toneClass('telegram overview meaning')}" open><summary><span>🧭 Kết luận nhanh</span><span class="muted">${actionCards.length} câu trả lời</span></summary><div class="group-body"><div class="card-grid-tight">${actionCards.map(item => telegramConfigCard(item.title, item.value, item.sub, item.tone, item.icon)).join('')}</div></div></details>`,
+    `<details class="group-section ${toneClass('telegram overview meaning 2')}" open><summary><span>🪄 Tóm tắt dễ hiểu</span><span class="muted">${quickNotes.length} ý chính</span></summary><div class="group-body"><div class="card-grid-tight">${quickNotes.map(item => telegramConfigCard(item.title, item.value, item.sub, item.tone, item.icon)).join('')}</div></div></details>`,
+    `<details class="group-section ${toneClass('telegram groups live')}" open><summary><span>💬 Nhóm Telegram đang dùng thật</span><span class="muted">${liveGroups.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${liveGroups.length ? liveGroups.map(telegramGroupCard).join('') : emptyHtml('Không có group Telegram nào trong config live.')}</div></div></details>`,
+    `<details class="group-section ${toneClass('telegram actors users')}" open><summary><span>👤 Admin / User ID đã ghi nhận</span><span class="muted">${users.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${users.length ? users.map(telegramActorCard).join('') : emptyHtml('Chưa gom được user/admin ID nào.')}</div></div></details>`,
+    `<details class="group-section ${toneClass('telegram actors groups')}" open><summary><span>👥 Group ID lịch sử / cần đối chiếu</span><span class="muted">${actorGroups.filter(item => item.id !== '*').length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${actorGroups.filter(item => item.id !== '*').length ? actorGroups.filter(item => item.id !== '*').map(telegramActorCard).join('') : emptyHtml('Chưa gom được group/chat lịch sử nào.')}</div></div></details>`,
+    `<details class="group-section ${toneClass('telegram config panel')}"><summary><span>⚙️ Cấu hình Telegram hiện tại</span><span class="muted">${configCards.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${configCards.join('')}${defaultGroup ? telegramGroupCard(defaultGroup) : ''}</div></div></details>`,
+    `<details class="group-section ${toneClass('telegram snapshots history')}"><summary><span>🗂️ Snapshot cấu hình Telegram cũ</span><span class="muted">${snapshots.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${snapshots.length ? snapshots.map(telegramSnapshotCard).join('') : emptyHtml('Không có snapshot Telegram nào.')}</div></div></details>`,
+  ].join('');
+  applySearch();
+}
+
+async function loadTelegram(force){
+  if (state.loaded.telegram && !force) return renderTelegram();
+  document.getElementById('telegram_table').innerHTML = emptyHtml('Đang tải tab Quyền Telegram...');
+  try {
+    state.data.telegram = await fetchJson('/api/telegram-access');
+    state.loaded.telegram = true;
+    renderTelegram();
+  } catch (error) {
+    document.getElementById('telegram_table').innerHTML = emptyHtml(`Lỗi tải tab Quyền Telegram: ${error.message}`);
+  }
+}
+
+async function loadDashboard(force){
+  document.getElementById('dashboard_access').innerHTML = emptyHtml('Đang lấy đường truy cập OpenClaw...');
+  document.getElementById('dashboard_embed_note').innerHTML = '';
+  let access = null;
+  try {
+    access = await fetchJson(`/api/openclaw-access${force ? '?refresh=1' : ''}`);
+  } catch (error) {
+    access = { ok: false, dashboard_url: '', base_url: '', token: '', raw_output: String(error.message || error) };
+  }
+  document.getElementById('dashboard_summary').innerHTML = [
+    `<span class="group-chip ${toneClass('gateway openclaw')}">🔌 Gateway <strong>127.0.0.1:18789</strong></span>`,
+    `<span class="group-chip ${toneClass('tunnel openclaw')}">🔐 Tunnel là đường truy cập chuẩn</span>`,
+    `<span class="group-chip ${toneClass('token openclaw')}">🎟️ URL có token mới vào thẳng được</span>`,
+    `<span class="group-chip ${toneClass('upgrade safe openclaw')}">🧩 Không nhúng trực tiếp để tránh lỗi khi OpenClaw đổi UI hoặc WebSocket</span>`,
+  ].join('');
+  document.getElementById('dashboard_access').innerHTML = [
+    `<div class="cmd-box ${toneClass('openclaw right-way tunnel')}">
+      <div class="card-title">1. Mở tunnel đúng cách</div>
+      <div class="card-sub">Đây là đường vào chuẩn, không sửa OpenClaw và an toàn cho update về sau.</div>
+      <pre>${escapeHtml(access.tunnel_command || 'ssh -N -L 18789:127.0.0.1:18789 -p 10900 ubuntu@e1.chiasegpu.vn')}</pre>
+    </div>`,
+    `<div class="cmd-box ${toneClass('openclaw tokenized url access')}">
+      <div class="card-title">2. Link truy cập chuẩn có token</div>
+      <div class="card-sub">${escapeHtml(access.ok ? 'Mở đúng URL này sau khi đã bật tunnel để vào thẳng OpenClaw.' : 'Chưa lấy được URL tokenized, xem ghi chú kỹ thuật ở dưới.')}</div>
+      <pre>${escapeHtml(access.dashboard_url || 'Chưa lấy được Dashboard URL')}</pre>
+    </div>`,
+  ].join('');
+  document.getElementById('dashboard_routes').innerHTML = '';
+  document.getElementById('dashboard_routes').style.display = 'none';
+  document.getElementById('dashboard_embed_note').innerHTML = `
+    <div class="card-title">Vì sao không nhúng OpenClaw trực tiếp ở đây</div>
+    <div class="card-sub">OpenClaw Control UI cần WebSocket + token đúng phiên. Nhúng qua proxy của AQUA Dashboard dễ gãy khi OpenClaw cập nhật UI, auth hoặc cơ chế WebSocket. Giữ cách vào bằng tunnel + URL tokenized sẽ bền hơn cho phục hồi, cài mới và nâng cấp sau này.</div>
+  `;
+  state.loaded.dashboard = true;
+}
+
+function routeCard(title, desc, stateLabel){
+  return `<div class="route-item ${toneClass(title, stateLabel)} searchable-item" data-search="${escapeHtml(`${title} ${desc} ${stateLabel}`)}"><div class="title">${escapeHtml(title)}</div><div class="desc">${escapeHtml(desc)}</div><div class="tag-row" style="margin-top:6px;">${labeledBadge('Trạng thái tuyến', stateLabel, /Đang dùng|Khuyên dùng/.test(stateLabel) ? 'b-status-online' : 'b-status-expired')}</div></div>`;
+}
+
+function openclawHelperOutputHtml(raw){
+  const text = String(raw || '').trim();
+  if (!text) return '<div class="muted">Không có output helper.</div>';
+  return `
+    <details>
+      <summary>🧾 Xem output kỹ thuật</summary>
+      <pre class="compact-pre">${escapeHtml(text)}</pre>
+    </details>
+  `;
+}
+
+function refreshDashboard(){
+  state.loaded.dashboard = false;
+  loadDashboard(true);
+}
+
+function reminderCard(item){
+  const urgency = reminderUrgency(item);
+  return `
+    <div class="dense-card ${toneClass('reminder', urgency, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-2">⏰ <span class="name-accent">${escapeHtml(truncateText(item.text || '-', 86))}</span></div>
+          <div class="card-sub mono truncate-1">${escapeHtml(item.id || '-')}</div>
+        </div>
+        <div class="actions">
+          ${statusBadge(item.status, 'Tiến độ')}
+          ${priorityBadge(urgency, 'Mức gấp')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Thời gian</div><div class="field-value truncate-1">${escapeHtml(item.when || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Lặp lại</div><div class="field-value truncate-1">${escapeHtml(item.recurrence || '-')}</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Gửi gần nhất</div><div class="field-value truncate-1">${escapeHtml(item.last_sent || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Tạo lúc</div><div class="field-value truncate-1">${escapeHtml(item.created_at || '-')}</div></div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Nhắc việc', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function proposalCard(item){
+  return `
+    <div class="dense-card ${toneClass('proposal', item.priority, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-2">💡 <span class="name-accent">${escapeHtml(truncateText(item.text || '-', 86))}</span></div>
+          <div class="card-sub mono truncate-1">${escapeHtml(item.id || '-')}</div>
+        </div>
+        <div class="actions">
+          ${statusBadge(item.status, 'Trạng thái')}
+          ${priorityBadge(item.priority || 'medium', 'Mức ưu tiên')}
+        </div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Tạo lúc</div>
+        <div class="field-value truncate-1">${escapeHtml(item.created_at || '-')}</div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Đề xuất', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function dailyCard(item){
+  const tasks = Array.isArray(item.tasks) ? item.tasks : [];
+  return `
+    <div class="dense-card ${toneClass('daily report', item.date)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">🗓️ <span class="name-accent">${escapeHtml(item.date || '-')}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.created_at || '-')}</div>
+        </div>
+        <div class="actions">
+          ${labeledBadge('Số task', tasks.length, 'b-kind')}
+        </div>
+      </div>
+      <div class="tag-row">
+        ${tasks.slice(0, 4).map(task => `<span class="tag">${escapeHtml(truncateText(task, 22))}</span>`).join('')}
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewRawObject('Báo cáo ngày', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function setReminderScope(value){ state.ui.reminders.scope = value; renderReminders(); }
+
+function renderReminders(){
+  const data = state.data.reminders || { reminders: [], proposals: [], daily_reports: [], meta: {} };
+  const reminders = data.reminders || [];
+  const proposals = data.proposals || [];
+  const daily = data.daily_reports || [];
+  document.getElementById('reminders_summary').innerHTML = keySummary({
+    'Nhắc việc': { value: reminders.length, sub: 'mục đang có', tone: 'reminder rose' },
+    'Đề xuất': { value: proposals.length, sub: 'đang chờ', tone: 'proposal violet' },
+    'Báo cáo ngày': { value: daily.length, sub: 'đã lưu', tone: 'daily report indigo' },
+    'Quá hạn': { value: reminders.filter(x => reminderUrgency(x) === 'critical').length, sub: 'cần xử lý ngay', tone: 'overdue warning amber' },
+  });
+  const metaChips = Object.entries(data.meta || {}).map(([key, value]) => `<span class="group-chip ${toneClass(key)} searchable-item" data-search="${escapeHtml(`${key} ${value}`)}"><strong>${escapeHtml(key)}</strong> ${escapeHtml(truncateText(value, 36))}</span>`).join('');
+  document.getElementById('reminders_meta').innerHTML = metaChips ? `<div class="group-strip">${metaChips}</div>` : '';
+  renderControls('reminders_controls', [
+    selectControl('Phạm vi', state.ui.reminders.scope, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'reminders', label: 'Nhắc việc' },
+      { value: 'proposals', label: 'Đề xuất' },
+      { value: 'daily', label: 'Báo cáo ngày' },
+    ], 'setReminderScope'),
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'reminders\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'reminders\', false)">Thu gọn</button>',
+  ]);
+  const sections = [];
+  if (state.ui.reminders.scope === 'all' || state.ui.reminders.scope === 'reminders') {
+    sections.push(`<details class="group-section ${toneClass('nhắc việc')}" open><summary><span>⏰ Nhắc việc</span><span class="muted">${reminders.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${reminders.map(reminderCard).join('')}</div></div></details>`);
+  }
+  if (state.ui.reminders.scope === 'all' || state.ui.reminders.scope === 'proposals') {
+    sections.push(`<details class="group-section ${toneClass('đề xuất')}" open><summary><span>💡 Đề xuất</span><span class="muted">${proposals.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${proposals.map(proposalCard).join('')}</div></div></details>`);
+  }
+  if (state.ui.reminders.scope === 'all' || state.ui.reminders.scope === 'daily') {
+    sections.push(`<details class="group-section ${toneClass('báo cáo ngày')}" open><summary><span>🗓️ Báo cáo ngày</span><span class="muted">${daily.length} mục</span></summary><div class="group-body"><div class="card-grid-tight">${daily.map(dailyCard).join('')}</div></div></details>`);
+  }
+  document.getElementById('reminders_tables').innerHTML = sections.join('') || emptyHtml('Không có dữ liệu nhắc việc.');
+  applySearch();
+}
+
+async function loadReminders(force){
+  if (state.loaded.reminders && !force) return renderReminders();
+  document.getElementById('reminders_tables').innerHTML = emptyHtml('Đang tải nhắc việc...');
+  try {
+    state.data.reminders = await fetchJson('/api/reminders');
+    state.loaded.reminders = true;
+    renderReminders();
+  } catch (error) {
+    document.getElementById('reminders_tables').innerHTML = emptyHtml(`Lỗi tải nhắc việc: ${error.message}`);
+  }
+}
+
+function setKnowledgeScope(value){ state.ui.knowledge.scope = value; renderKnowledge(); }
+
+function knowledgeCard(item){
+  return `
+    <div class="dense-card ${toneClass(item.group, item.label)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">${item.icon} <span class="name-accent">${escapeHtml(item.label)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.group)}</div>
+        </div>
+        <div class="actions">
+          ${labeledBadge('Loại', item.label, 'b-kind')}
+          ${labeledBadge('Số dòng', `${item.line_count}`, 'b-priority-medium')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Cập nhật</div><div class="field-value truncate-1">${escapeHtml(item.updated_at || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Dung lượng</div><div class="field-value truncate-1">${escapeHtml(item.size_human || '-')}</div></div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Trích đoạn</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText((item.content || '').replace(/\s+/g, ' '), 130))}</div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn mini-primary" onclick="showKnowledgeContent('${item.key}')">📖 Đọc</button>
+        <button class="mini-btn" onclick="viewRawObject('Tàng Thư Các', '${encodeObj(item)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function showKnowledgeContent(key){
+  const item = (state.data.knowledge || []).find(entry => entry.key === key);
+  if (!item) return openModal('Tàng Thư Các', emptyHtml('Không tìm thấy tài liệu.'));
+  openModal(`${item.icon} ${item.label}`, `<div class="code-box"><pre>${escapeHtml(item.content || '')}</pre></div>`);
+}
+
+function renderKnowledge(){
+  const allItems = state.data.knowledge || [];
+  const items = state.ui.knowledge.scope === 'all' ? allItems : allItems.filter(item => item.group === state.ui.knowledge.scope);
+  document.getElementById('knowledge_summary').innerHTML = keySummary({
+    'Tài liệu': { value: allItems.length, sub: 'đã tải thành công', tone: 'knowledge emerald' },
+    'Lõi nhận thức': { value: allItems.filter(x => x.group === 'Lõi nhận thức').length, sub: 'Soul / User / Memory / Learning / Skill', tone: 'memory soul violet' },
+    'Bổ trợ': { value: allItems.filter(x => x.group === 'Bổ trợ').length, sub: 'Identity / Agents / Heartbeat', tone: 'support slate' },
+    'Tổng dòng': { value: allItems.reduce((sum, x) => sum + numericOrZero(x.line_count), 0), sub: 'quy mô đọc nhanh', tone: 'lines info indigo' },
+  });
+  document.getElementById('knowledge_groups').innerHTML = renderGroupStrip(allItems, 'group');
+  renderControls('knowledge_controls', [
+    selectControl('Phạm vi', state.ui.knowledge.scope, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'Lõi nhận thức', label: 'Lõi nhận thức' },
+      { value: 'Bổ trợ', label: 'Bổ trợ' },
+    ], 'setKnowledgeScope'),
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'knowledge\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'knowledge\', false)">Thu gọn</button>',
+  ]);
+  document.getElementById('knowledge_tables').innerHTML = items.length ? renderGroupDetails('knowledge', groupBy(items, 'group'), knowledgeCard, 'card-grid-tight') : emptyHtml('Không có tài liệu nào trong phạm vi hiện tại.');
+  applySearch();
+}
+
+async function loadKnowledge(force){
+  if (state.loaded.knowledge && !force) return renderKnowledge();
+  document.getElementById('knowledge_tables').innerHTML = emptyHtml('Đang tải Tàng Thư Các...');
+  try {
+    const settled = await Promise.allSettled(KNOWLEDGE_TOPICS.map(async topic => {
+      const payload = await fetchJson(`/api/knowledge/${topic.key}`);
+      return { ...topic, ...payload };
+    }));
+    state.data.knowledge = settled
+      .filter(item => item.status === 'fulfilled')
+      .map(item => item.value);
+    state.loaded.knowledge = true;
+    renderKnowledge();
+  } catch (error) {
+    document.getElementById('knowledge_tables').innerHTML = emptyHtml(`Lỗi tải Tàng Thư Các: ${error.message}`);
+  }
+}
+
+function setSkillSort(value){ state.ui.skills.sort = value; renderSkills(); }
+function setSkillGroup(value){ state.ui.skills.group = value; renderSkills(); }
+function setSkillInstall(value){ state.ui.skills.install = value; renderSkills(); }
+
+function skillCard(item){
+  return `
+    <div class="dense-card ${toneClass(item.group, item.lang, item.installed ? 'installed' : 'missing')} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">${groupIcon(item.group)} <span class="name-accent">${escapeHtml(item.name)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.group)}</div>
+        </div>
+        <div class="actions">
+          ${langBadge(item.lang)}
+          ${installBadge(item.installed)}
+        </div>
+      </div>
+      <div class="tag-row">
+        ${priorityBadge(item.importance)}
+        ${(item.tags || []).slice(0, 4).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Cập nhật</div><div class="field-value truncate-1">${escapeHtml(item.updated_at || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Đường dẫn</div><div class="field-value mono truncate-1">${escapeHtml(shortPath(item.path, 32))}</div></div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Mô tả</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(item.desc || '-', 86))}</div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn mini-primary" onclick="viewSkillContent('${encodeURIComponent(item.name)}')">📄 Code</button>
+        <button class="mini-btn" onclick="viewJsonModal('skills', '${encodeURIComponent(item.name)}')">JSON</button>
+        <button class="mini-btn mini-danger" onclick="deleteSkill('${encodeURIComponent(item.name)}')">Xoá</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderSkills(){
+  const items = state.data.skills || [];
+  const groups = [...new Set(items.map(item => item.group).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'vi', { sensitivity: 'base' }));
+  renderControls('skills_controls', [
+    selectControl('Sắp xếp', state.ui.skills.sort, [
+      { value: 'group', label: 'Nhóm' },
+      { value: 'name', label: 'Tên file' },
+      { value: 'importance', label: 'Ưu tiên' },
+      { value: 'updated_at', label: 'Cập nhật' },
+    ], 'setSkillSort'),
+    selectControl('Nhóm', state.ui.skills.group, [{ value: 'all', label: 'Tất cả nhóm' }, ...groups.map(g => ({ value: g, label: g }))], 'setSkillGroup'),
+    selectControl('Cài đặt', state.ui.skills.install, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'installed', label: 'Đã cài' },
+      { value: 'missing', label: 'Chưa cài' },
+    ], 'setSkillInstall'),
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'skills\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'skills\', false)">Thu gọn</button>',
+  ]);
+  let filtered = sortItems(items, state.ui.skills.sort);
+  if (state.ui.skills.group !== 'all') filtered = filtered.filter(item => item.group === state.ui.skills.group);
+  if (state.ui.skills.install === 'installed') filtered = filtered.filter(item => item.installed);
+  if (state.ui.skills.install === 'missing') filtered = filtered.filter(item => !item.installed);
+  document.getElementById('skills_summary').innerHTML = keySummary({
+    'Skill': { value: filtered.length, sub: 'skill đang hiển thị', tone: 'skill violet' },
+    'Đã cài': { value: filtered.filter(x => x.installed).length, sub: 'có quyền chạy', tone: 'installed success' },
+    'Python': { value: filtered.filter(x => x.lang === 'python').length, sub: '.py', tone: 'python indigo' },
+    'Shell': { value: filtered.filter(x => x.lang === 'shell').length, sub: '.sh', tone: 'shell amber' },
+    'Rất cao': { value: filtered.filter(x => x.importance === 'critical').length, sub: 'mức ưu tiên cao', tone: 'critical warning' },
+  });
+  document.getElementById('skills_groups').innerHTML = renderGroupStrip(filtered, 'group');
+  document.getElementById('skills_tables').innerHTML = filtered.length ? renderGroupDetails('skills', groupBy(filtered, 'group'), skillCard, 'card-grid-six') : emptyHtml('Không có script nào theo bộ lọc hiện tại.');
+  applySearch();
+}
+
+async function loadSkills(force){
+  if (state.loaded.skills && !force) return renderSkills();
+  document.getElementById('skills_tables').innerHTML = emptyHtml('Đang tải script...');
+  try {
+    state.data.skills = await fetchJson('/api/skills');
+    state.loaded.skills = true;
+    renderSkills();
+  } catch (error) {
+    document.getElementById('skills_tables').innerHTML = emptyHtml(`Lỗi tải script: ${error.message}`);
+  }
+}
+
+async function viewSkillContent(encodedName){
+  const name = decodeURIComponent(encodedName);
+  try {
+    const payload = await fetchJson(`/api/skills/${encodeURIComponent(name)}/content`);
+    const language = payload.ext === 'py' ? 'python' : payload.ext === 'sh' ? 'bash' : '';
+    openModal(`Mã nguồn: ${name}`, `<div class="code-box"><pre><code class="language-${language}">${escapeHtml(payload.content || '')}</code></pre></div>`);
+  } catch (error) {
+    openModal(`Mã nguồn: ${name}`, emptyHtml(`Không đọc được file: ${error.message}`));
+  }
+}
+
+async function uploadSkillFromInput(input){
+  if (!input.files || !input.files[0]) return;
+  const form = new FormData();
+  form.append('file', input.files[0]);
+  try {
+    await fetchJson('/api/skills', { method: 'POST', body: form });
+    input.value = '';
+    state.loaded.skills = false;
+    await loadSkills(true);
+  } catch (error) {
+    alert(`Upload script thất bại: ${error.message}`);
+  }
+}
+
+function deleteSkill(encodedName){
+  const name = decodeURIComponent(encodedName);
+  askConfirm('Xoá script', `Xoá file ${name}?`, async () => {
+    try {
+      await fetchJson(`/api/skills/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      state.loaded.skills = false;
+      await loadSkills(true);
+    } catch (error) {
+      alert(`Xoá script thất bại: ${error.message}`);
+    }
+  });
+}
+
+function setGitSort(value){ state.ui.git.sort = value; renderGit(); }
+function setGitGroup(value){ state.ui.git.group = value; renderGit(); }
+function setGitReadme(value){ state.ui.git.readme = value; renderGit(); }
+
+function gitCard(item){
+  return `
+    <div class="dense-card ${toneClass(item.group, item.remote_host, item.branch)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">${groupIcon(item.group)} <span class="name-accent">${escapeHtml(item.name)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.group)}</div>
+        </div>
+        <div class="actions">
+          ${priorityBadge(item.importance)}
+          ${boolLabeledBadge('README', item.has_readme)}
+        </div>
+      </div>
+      <div class="tag-row">
+        ${boolLabeledBadge('META', item.has_meta)}
+        ${labeledBadge('Branch', item.branch || 'Không có', 'b-kind')}
+        ${labeledBadge('Host', item.remote_host || 'Nội bộ', 'b-kind')}
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Nguồn repo</div><div class="field-value mono truncate-1">${escapeHtml(item.remote_path || item.remote || 'Không có remote')}</div></div>
+        <div class="field-col"><div class="field-label">Host</div><div class="field-value truncate-1">${escapeHtml(item.remote_host || 'Nội bộ')}</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Kích thước</div><div class="field-value">${escapeHtml(item.size_human || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Tổng file</div><div class="field-value">${escapeHtml(item.file_count)}</div></div>
+        <div class="field-col"><div class="field-label">PY / SH</div><div class="field-value">${escapeHtml(item.py_count)} / ${escapeHtml(item.sh_count)}</div></div>
+        <div class="field-col"><div class="field-label">Cập nhật</div><div class="field-value truncate-1">${escapeHtml(item.updated_at || item.created_at || '-')}</div></div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Mô tả</div>
+        <div class="field-value truncate-2">${escapeHtml(truncateText(item.desc || '-', 100))}</div>
+      </div>
+      <div class="actions">
+        <button class="mini-btn" onclick="viewJsonModal('git', '${encodeURIComponent(item.name)}')">JSON</button>
+        <button class="mini-btn mini-danger" onclick="deleteGitPackage('${encodeURIComponent(item.name)}')">Xoá</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderGit(){
+  const items = state.data.git || [];
+  const groups = [...new Set(items.map(item => item.group).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'vi', { sensitivity: 'base' }));
+  renderControls('git_controls', [
+    selectControl('Sắp xếp', state.ui.git.sort, [
+      { value: 'group', label: 'Nhóm' },
+      { value: 'name', label: 'Tên gói' },
+      { value: 'importance', label: 'Ưu tiên' },
+      { value: 'updated_at', label: 'Cập nhật' },
+    ], 'setGitSort'),
+    selectControl('Nhóm', state.ui.git.group, [{ value: 'all', label: 'Tất cả nhóm' }, ...groups.map(g => ({ value: g, label: g }))], 'setGitGroup'),
+    selectControl('README', state.ui.git.readme, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'yes', label: 'Đã có README' },
+      { value: 'no', label: 'Chưa có README' },
+    ], 'setGitReadme'),
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'git\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'git\', false)">Thu gọn</button>',
+  ]);
+  let filtered = sortItems(items, state.ui.git.sort);
+  if (state.ui.git.group !== 'all') filtered = filtered.filter(item => item.group === state.ui.git.group);
+  if (state.ui.git.readme === 'yes') filtered = filtered.filter(item => item.has_readme);
+  if (state.ui.git.readme === 'no') filtered = filtered.filter(item => !item.has_readme);
+  document.getElementById('git_summary').innerHTML = keySummary({
+    'Package': { value: filtered.length, sub: 'repo / folder đang hiển thị', tone: 'github indigo' },
+    'Đã có README': { value: filtered.filter(x => x.has_readme).length, sub: 'có mô tả', tone: 'readme success' },
+    'Đã có META': { value: filtered.filter(x => x.has_meta).length, sub: 'có meta', tone: 'meta cyan' },
+    'Host ngoài': { value: filtered.filter(x => x.remote_host).length, sub: 'có remote', tone: 'remote info sky' },
+    'Rất cao': { value: filtered.filter(x => x.importance === 'critical').length, sub: 'ưu tiên cao', tone: 'critical warning' },
+  });
+  document.getElementById('git_groups').innerHTML = renderGroupStrip(filtered, 'group');
+  document.getElementById('git_tables').innerHTML = filtered.length ? renderGroupDetails('git', groupBy(filtered, 'group'), gitCard, 'card-grid') : emptyHtml('Không có package nào theo bộ lọc hiện tại.');
+  applySearch();
+}
+
+async function loadGitPackages(force){
+  if (state.loaded.git && !force) return renderGit();
+  document.getElementById('git_tables').innerHTML = emptyHtml('Đang tải github packages...');
+  try {
+    state.data.git = await fetchJson('/api/git-packages');
+    state.loaded.git = true;
+    renderGit();
+  } catch (error) {
+    document.getElementById('git_tables').innerHTML = emptyHtml(`Lỗi tải github packages: ${error.message}`);
+  }
+}
+
+function deleteGitPackage(encodedName){
+  const name = decodeURIComponent(encodedName);
+  askConfirm('Xoá package', `Xoá package ${name}?`, async () => {
+    try {
+      await fetchJson(`/api/git-packages/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      state.loaded.git = false;
+      await loadGitPackages(true);
+    } catch (error) {
+      alert(`Xoá package thất bại: ${error.message}`);
+    }
+  });
+}
+
+function setBackupSort(value){ state.ui.backup.sort = value; renderBackup(); }
+
+function backupCard(item){
+  return `
+    <div class="dense-card ${toneClass(item.group, item.label, item.key)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="card-top">
+        <div class="field-col">
+          <div class="card-title truncate-1">🛡️ <span class="name-accent">${escapeHtml(item.label)}</span></div>
+          <div class="card-sub truncate-1">${escapeHtml(item.key)} · ${escapeHtml(item.type)}</div>
+        </div>
+        <div class="actions">
+          ${priorityBadge(item.importance)}
+          ${labeledBadge('Nhóm', item.group || 'Khác')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Số file</div><div class="field-value">${escapeHtml(item.file_count)}</div></div>
+        <div class="field-col"><div class="field-label">Dung lượng</div><div class="field-value">${escapeHtml(item.size_human || '-')}</div></div>
+        <div class="field-col"><div class="field-label">Cập nhật</div><div class="field-value truncate-1">${escapeHtml(item.last_updated || '-')}</div></div>
+      </div>
+      <div class="field-col">
+        <div class="field-label">Phạm vi</div>
+        <div class="field-value mono truncate-1">${escapeHtml(shortPath(item.scope || '-', 48))}</div>
+      </div>
+      <input id="restore_${item.key}" class="restore-input" type="file" accept=".zip">
+      <div class="actions">
+        <a class="mini-btn mini-primary" href="/api/backup/${item.key}">Tải backup</a>
+        <button class="mini-btn" onclick="restoreBackup('${item.key}')">Phục hồi</button>
+        <button class="mini-btn" onclick="viewJsonModal('backup', '${encodeURIComponent(item.key)}')">JSON</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderBackup(){
+  const items = sortItems(state.data.backup || [], state.ui.backup.sort);
+  document.getElementById('backup_summary').innerHTML = keySummary({
+    'Mục sao lưu': { value: items.length, sub: 'tab / nhóm có thể lưu', tone: 'backup lime' },
+    'Tổng file': { value: items.reduce((sum,x) => sum + numericOrZero(x.file_count), 0), sub: 'ước lượng hiện tại', tone: 'files info sky' },
+    'Rất cao': { value: items.filter(x => x.importance === 'critical').length, sub: 'ưu tiên cao nhất', tone: 'critical warning' },
+    'Tàng Thư Các': { value: items.filter(x => String(x.group) === 'Tàng Thư Các').length, sub: 'mục tài liệu lõi', tone: 'knowledge backup emerald' },
+  });
+  renderControls('backup_controls', [
+    selectControl('Sắp xếp', state.ui.backup.sort, [
+      { value: 'importance', label: 'Ưu tiên' },
+      { value: 'group', label: 'Nhóm' },
+      { value: 'size_bytes', label: 'Dung lượng' },
+      { value: 'file_count', label: 'Số file' },
+      { value: 'last_updated', label: 'Cập nhật' },
+    ], 'setBackupSort'),
+    '<span class="controls-spacer"></span>',
+    '<button class="btn" onclick="toggleDetails(\'backup\', true)">Mở hết</button>',
+    '<button class="btn" onclick="toggleDetails(\'backup\', false)">Thu gọn</button>',
+  ]);
+  document.getElementById('backup_table').innerHTML = items.length ? renderGroupDetails('backup', groupBy(items, 'group'), backupCard, 'card-grid-tight') : emptyHtml('Không có target backup nào.');
+  applySearch();
+}
+
+async function loadBackup(force){
+  if (state.loaded.backup && !force) return renderBackup();
+  document.getElementById('backup_table').innerHTML = emptyHtml('Đang tải mục tiêu sao lưu...');
+  try {
+    state.data.backup = await fetchJson('/api/backup-targets');
+    state.loaded.backup = true;
+    renderBackup();
+  } catch (error) {
+    document.getElementById('backup_table').innerHTML = emptyHtml(`Lỗi tải backup targets: ${error.message}`);
+  }
+}
+
+async function restoreBackup(target){
+  const input = document.getElementById(`restore_${target}`);
+  if (!input || !input.files || !input.files[0]) {
+    alert('Chọn file zip trước khi phục hồi.');
+    return;
+  }
+  const form = new FormData();
+  form.append('file', input.files[0]);
+  try {
+    const payload = await fetchJson(`/api/restore/${target}`, { method: 'POST', body: form });
+    alert(payload.message || 'Phục hồi thành công.');
+    input.value = '';
+    state.loaded.backup = false;
+    await loadBackup(true);
+  } catch (error) {
+    alert(`Phục hồi thất bại: ${error.message}`);
+  }
+}
+
+function init(){
+  statsPulse();
+  setInterval(statsPulse, 10000);
+  loadOverview(true);
+}
+
+init();
+</script>
+</body>
+</html>

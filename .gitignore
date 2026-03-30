@@ -1,0 +1,7 @@
+.env
+.venv/
+dist/
+__pycache__/
+.update-snapshots/
+.aqua-manager-snapshots/
+.DS_Store

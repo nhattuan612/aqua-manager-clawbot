@@ -17,6 +17,13 @@ require_bin() {
   }
 }
 
+generate_secret_key() {
+  python3 - <<'PY'
+import secrets
+print(secrets.token_urlsafe(48))
+PY
+}
+
 sync_tree() {
   local src="$1" dst="$2"
   if command -v rsync >/dev/null 2>&1; then
@@ -52,6 +59,14 @@ wait_for_http() {
   return 1
 }
 
+first_non_loopback_ip() {
+  if command -v hostname >/dev/null 2>&1; then
+    hostname -I 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i !~ /^127\\./) { print $i; exit }}'
+    return 0
+  fi
+  return 0
+}
+
 require_bin python3
 require_bin curl
 
@@ -61,6 +76,17 @@ sync_tree "${SOURCE_DIR}" "${INSTALL_DIR}"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   cp "${INSTALL_DIR}/config/aqua.env.example" "${ENV_FILE}"
+  GENERATED_SECRET="$(generate_secret_key)"
+  python3 - "${ENV_FILE}" "${GENERATED_SECRET}" <<'PY'
+import pathlib
+import sys
+
+env_path = pathlib.Path(sys.argv[1])
+secret = sys.argv[2]
+content = env_path.read_text()
+content = content.replace("AQUA_SECRET_KEY=CHANGE_ME_LONG_RANDOM_SECRET", f"AQUA_SECRET_KEY={secret}")
+env_path.write_text(content)
+PY
   echo "Created ${ENV_FILE} from example. Edit it before exposing the dashboard publicly."
 fi
 
@@ -75,6 +101,7 @@ set +a
 
 APP_NAME="${AQUA_APP_NAME:-aqua_manager_clawbot}"
 APP_PORT="${AQUA_PORT:-6080}"
+PUBLIC_BASE_URL="${AQUA_PUBLIC_BASE_URL:-}"
 export AQUA_ENV_FILE="${ENV_FILE}"
 export AQUA_APP_NAME="${APP_NAME}"
 
@@ -97,3 +124,26 @@ echo
 echo "AQUA Manager installed at ${INSTALL_DIR}"
 echo "PM2 app: ${APP_NAME}"
 echo "Env file: ${ENV_FILE}"
+echo
+echo "==== Access Information ===="
+echo "Local login URL: http://127.0.0.1:${APP_PORT}/login"
+SERVER_IP="$(first_non_loopback_ip || true)"
+if [[ -n "${SERVER_IP:-}" ]]; then
+  echo "Server IP login URL: http://${SERVER_IP}:${APP_PORT}/login"
+fi
+if [[ -n "${PUBLIC_BASE_URL}" ]]; then
+  echo "Public login URL: ${PUBLIC_BASE_URL%/}/login"
+else
+  echo "Public login URL: set AQUA_PUBLIC_BASE_URL in ${ENV_FILE} if you want a canonical domain-based link."
+fi
+echo "Login password: read AQUA_ADMIN_PASSWORD from ${ENV_FILE}"
+echo
+echo "If this is a fresh install, review these values before wide exposure:"
+echo "- AQUA_ADMIN_PASSWORD"
+echo "- AQUA_SECRET_KEY"
+echo "- AQUA_PUBLIC_BASE_URL"
+echo "- AQUA_SSH_HOST / AQUA_SSH_USER / AQUA_SSH_PORT"
+if grep -q '^AQUA_ADMIN_PASSWORD=123456789$' "${ENV_FILE}"; then
+  echo
+  echo "[warn] AQUA_ADMIN_PASSWORD is still the default 123456789. Change it before broad public exposure."
+fi

@@ -75,13 +75,21 @@ SKILLS_DIR = env("AQUA_SKILLS_DIR", os.path.join(WORKSPACE_DIR, "skills"))
 BACKUP_DIR = env("AQUA_BACKUP_DIR", os.path.join(WORKSPACE_DIR, "backups"))
 AUTH_PROFILES = env("AQUA_AUTH_PROFILES", os.path.join(OPENCLAW_HOME, "agents/main/agent/auth-profiles.json"))
 GATEWAY_URL = env("AQUA_GATEWAY_URL", "http://127.0.0.1:18789")
-OPENCLAW_BIN = env("AQUA_OPENCLAW_BIN", shutil.which("openclaw") or "/home/ubuntu/.npm-global/bin/openclaw")
-PM2_BIN = env("AQUA_PM2_BIN", shutil.which("pm2") or "/home/ubuntu/.npm-global/bin/pm2")
+OPENCLAW_BIN = env("AQUA_OPENCLAW_BIN", shutil.which("openclaw") or "openclaw")
+PM2_BIN = env("AQUA_PM2_BIN", shutil.which("pm2") or "pm2")
 APP_HOST = env("AQUA_HOST", "0.0.0.0")
 APP_PORT = env_int("AQUA_PORT", 6080)
+PUBLIC_BASE_URL = str(env("AQUA_PUBLIC_BASE_URL", "")).strip().rstrip("/")
+SSH_HOST = str(env("AQUA_SSH_HOST", "")).strip()
+SSH_PORT = str(env("AQUA_SSH_PORT", "22")).strip() or "22"
+SSH_USER = str(env("AQUA_SSH_USER", "")).strip()
+TUNNEL_LOCAL_PORT = env_int("AQUA_GATEWAY_TUNNEL_LOCAL_PORT", 18789)
 
 app.secret_key = env("AQUA_SECRET_KEY", "AQUA_DASHBOARD_SECRET")
-ADMIN_PASSWORD = env("AQUA_ADMIN_PASSWORD", "AQUA_2026")
+# The package ships with a simple default so first-time installs can log in
+# immediately after `install.sh`. Operators should still change this in `.env`
+# before exposing the dashboard to a wider network.
+ADMIN_PASSWORD = env("AQUA_ADMIN_PASSWORD", "123456789")
 
 os.makedirs(BACKUP_DIR, exist_ok=True)
 
@@ -219,6 +227,40 @@ def format_ts(ts):
     if not ts:
         return ""
     return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
+
+
+def gateway_parts():
+    parsed = urlparse(GATEWAY_URL or "")
+    scheme = parsed.scheme or "http"
+    host = parsed.hostname or "127.0.0.1"
+    if parsed.port:
+        port = parsed.port
+    elif scheme == "https":
+        port = 443
+    else:
+        port = 80
+    return scheme, host, port
+
+
+def public_dashboard_base_url():
+    """
+    Prefer an explicit public base URL for install-once/reuse-many scenarios.
+    If it is missing, fall back to the current request host so the same build
+    can still explain access correctly behind a reverse proxy.
+    """
+    if PUBLIC_BASE_URL:
+        return PUBLIC_BASE_URL
+    try:
+        return request.host_url.rstrip("/")
+    except RuntimeError:
+        return f"http://127.0.0.1:{APP_PORT}"
+
+
+def openclaw_tunnel_command():
+    _, gateway_host, gateway_port = gateway_parts()
+    if SSH_HOST and SSH_USER:
+        return f"ssh -N -L {TUNNEL_LOCAL_PORT}:{gateway_host}:{gateway_port} -p {SSH_PORT} {SSH_USER}@{SSH_HOST}"
+    return f"ssh -N -L {TUNNEL_LOCAL_PORT}:{gateway_host}:{gateway_port} -p <SSH_PORT> <SSH_USER>@<SSH_HOST>"
 
 
 def human_size(num):
@@ -769,46 +811,62 @@ def get_openclaw_access_info():
     now = time.time()
     cached = OPENCLAW_ACCESS_CACHE.get("value")
     if cached and now - float(OPENCLAW_ACCESS_CACHE.get("ts") or 0.0) < OPENCLAW_ACCESS_CACHE_TTL:
-        return cached
-    output = ""
-    url = ""
-    base_url = ""
-    token = ""
-    try:
-        proc = subprocess.run(
-            [OPENCLAW_BIN, "dashboard", "--no-open"],
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
-        )
-        output = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()
-    except Exception as exc:
-        output = str(exc)
-    for line in output.splitlines():
-        line = line.strip()
-        if line.startswith("Dashboard URL:"):
-            url = line.split("Dashboard URL:", 1)[1].strip()
-            break
-    if url:
-        base_url = url.split("#", 1)[0]
-        if "#token=" in url:
-            token = url.split("#token=", 1)[1].strip()
+        output = cached.get("raw_output", "")
+        url = cached.get("dashboard_url", "")
+        base_url = cached.get("base_url", "")
+        token = cached.get("token", "")
+    else:
+        output = ""
+        url = ""
+        base_url = ""
+        token = ""
+        try:
+            proc = subprocess.run(
+                [OPENCLAW_BIN, "dashboard", "--no-open"],
+                capture_output=True,
+                text=True,
+                timeout=20,
+                check=False,
+            )
+            output = ((proc.stdout or "") + "\n" + (proc.stderr or "")).strip()
+        except Exception as exc:
+            output = str(exc)
+        for line in output.splitlines():
+            line = line.strip()
+            if line.startswith("Dashboard URL:"):
+                url = line.split("Dashboard URL:", 1)[1].strip()
+                break
+        if url:
+            base_url = url.split("#", 1)[0]
+            if "#token=" in url:
+                token = url.split("#token=", 1)[1].strip()
+        OPENCLAW_ACCESS_CACHE["ts"] = now
+        OPENCLAW_ACCESS_CACHE["value"] = {
+            "ok": bool(url),
+            "dashboard_url": url,
+            "base_url": base_url,
+            "token": token,
+            "raw_output": output[-4000:],
+        }
+    _, gateway_host, gateway_port = gateway_parts()
+    public_url = public_dashboard_base_url()
     result = {
         "ok": bool(url),
         "dashboard_url": url,
         "base_url": base_url,
         "token": token,
-        "tunnel_command": "ssh -N -L 18789:127.0.0.1:18789 -p 10900 ubuntu@e1.chiasegpu.vn",
-        "local_open": "http://127.0.0.1:18789/",
-        "public_proxy_url": "http://e1.chiasegpu.vn:35045/openclaw/",
-        "public_dashboard_url": "http://e1.chiasegpu.vn:35045/",
+        "gateway_url": GATEWAY_URL,
+        "gateway_host": gateway_host,
+        "gateway_port": gateway_port,
+        "tunnel_local_port": TUNNEL_LOCAL_PORT,
+        "tunnel_command": openclaw_tunnel_command(),
+        "local_open": f"http://127.0.0.1:{TUNNEL_LOCAL_PORT}/",
+        "public_proxy_url": f"{public_url}/openclaw/",
+        "public_dashboard_url": f"{public_url}/",
         "reason_public": "Đường public /openclaw/ chỉ đi qua Flask proxy HTTP và không phải đường truy cập chuẩn cho WebSocket + token của OpenClaw.",
-        "reason_root": "Mở root 127.0.0.1:18789 chỉ hiện màn Connect; muốn vào thẳng phải dùng URL có #token do openclaw dashboard sinh ra.",
+        "reason_root": f"Mở root 127.0.0.1:{TUNNEL_LOCAL_PORT} chỉ hiện màn Connect; muốn vào thẳng phải dùng URL có #token do openclaw dashboard sinh ra.",
         "raw_output": output[-4000:],
     }
-    OPENCLAW_ACCESS_CACHE["ts"] = now
-    OPENCLAW_ACCESS_CACHE["value"] = result
     return result
 
 

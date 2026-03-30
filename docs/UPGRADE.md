@@ -13,6 +13,34 @@ Upgrade AQUA independently from OpenClaw whenever possible.
 4. PM2 reloads the app.
 5. `doctor` and `smoke-test` run after reload.
 
+## Exact operator flow
+When coming back months or years later, use the same sequence:
+
+1. Go to the install directory
+   ```bash
+   cd ~/.aqua-manager-clawbot
+   ```
+2. Save or verify `.env`
+3. Update package files
+   - if installed from git:
+     ```bash
+     git pull --ff-only origin main
+     ```
+   - if installed from a release tarball:
+     download the new release, extract it, and run `bash deploy/install.sh`
+4. Run:
+   ```bash
+   bash deploy/update.sh
+   ```
+5. Check:
+   ```bash
+   bash deploy/doctor.sh
+   bash deploy/smoke-test.sh
+   ```
+6. If anything looks wrong, roll back immediately with the newest snapshot
+
+This keeps upgrades repeatable even if the original chat context is long gone.
+
 ## OpenClaw upgrades
 AQUA is designed to survive OpenClaw upgrades because:
 - it reads workspace/config state

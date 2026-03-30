@@ -26,6 +26,9 @@ Then edit `.env` in the install directory and reload:
 pm2 restart aqua_manager_clawbot --update-env
 ```
 
+`deploy/install.sh` prints the login URLs right after first install so operators
+know exactly where to access the dashboard on the new VPS.
+
 For production-like VPS use, the package launcher prefers `waitress` from the
 virtualenv. That keeps AQUA Manager stable under PM2 without modifying
 OpenClaw.
@@ -38,6 +41,7 @@ OpenClaw.
 
 Read the full docs in:
 - [INSTALL](./docs/INSTALL.md)
+- [FIRST_RUN](./docs/FIRST_RUN.md)
 - [UPGRADE](./docs/UPGRADE.md)
 - [BACKUP_RESTORE](./docs/BACKUP_RESTORE.md)
 - [ROLLBACK](./docs/ROLLBACK.md)

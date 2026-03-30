@@ -9,7 +9,7 @@ Return AQUA Manager to a previous known-good state after a bad upgrade or a bad 
 
 ## Fast rollback with the script
 ```bash
-bash deploy/rollback.sh /home/ubuntu/.aqua-manager-clawbot/.update-snapshots/<STAMP>
+bash deploy/rollback.sh "$HOME/.aqua-manager-clawbot/.update-snapshots/<STAMP>"
 ```
 
 The script restores:

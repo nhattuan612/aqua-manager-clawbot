@@ -32,7 +32,7 @@ tar -czf aqua-manager-backup.tar.gz \
 For application-only incidents, prefer the built-in rollback path instead of a
 full manual restore:
 ```bash
-bash deploy/rollback.sh /home/ubuntu/.aqua-manager-clawbot/.update-snapshots/<STAMP>
+bash deploy/rollback.sh "$HOME/.aqua-manager-clawbot/.update-snapshots/<STAMP>"
 ```
 
 ## Why restore safety was tightened

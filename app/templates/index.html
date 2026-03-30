@@ -2739,7 +2739,7 @@ async function loadDashboard(force){
     access = { ok: false, dashboard_url: '', base_url: '', token: '', raw_output: String(error.message || error) };
   }
   document.getElementById('dashboard_summary').innerHTML = [
-    `<span class="group-chip ${toneClass('gateway openclaw')}">🔌 Gateway <strong>127.0.0.1:18789</strong></span>`,
+    `<span class="group-chip ${toneClass('gateway openclaw')}">🔌 Gateway <strong>${escapeHtml(access.gateway_url || 'http://127.0.0.1:18789')}</strong></span>`,
     `<span class="group-chip ${toneClass('tunnel openclaw')}">🔐 Tunnel là đường truy cập chuẩn</span>`,
     `<span class="group-chip ${toneClass('token openclaw')}">🎟️ URL có token mới vào thẳng được</span>`,
     `<span class="group-chip ${toneClass('upgrade safe openclaw')}">🧩 Không nhúng trực tiếp để tránh lỗi khi OpenClaw đổi UI hoặc WebSocket</span>`,
@@ -2748,7 +2748,7 @@ async function loadDashboard(force){
     `<div class="cmd-box ${toneClass('openclaw right-way tunnel')}">
       <div class="card-title">1. Mở tunnel đúng cách</div>
       <div class="card-sub">Đây là đường vào chuẩn, không sửa OpenClaw và an toàn cho update về sau.</div>
-      <pre>${escapeHtml(access.tunnel_command || 'ssh -N -L 18789:127.0.0.1:18789 -p 10900 ubuntu@e1.chiasegpu.vn')}</pre>
+      <pre>${escapeHtml(access.tunnel_command || 'ssh -N -L 18789:127.0.0.1:18789 -p <SSH_PORT> <SSH_USER>@<SSH_HOST>')}</pre>
     </div>`,
     `<div class="cmd-box ${toneClass('openclaw tokenized url access')}">
       <div class="card-title">2. Link truy cập chuẩn có token</div>

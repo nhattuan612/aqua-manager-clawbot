@@ -2027,7 +2027,7 @@ function openclawLogRow(item){
           <span>📜</span>
           <span class="name-accent">${escapeHtml(item.name)}</span>
         </div>
-        <div class="log-col-sub">${escapeHtml(item.error_count ? 'Có log lỗi gần đây' : 'Output hoạt động')}</div>
+        <div class="log-col-sub">${escapeHtml(item.error_count ? 'Có log lỗi gần đây' : 'Output hoạt động')} · ${escapeHtml(item.source_label || '-')}</div>
         <div class="log-col-main">${badge(item.error_count ? `Log lỗi: ${item.error_count}` : 'Log: Hoạt động', item.error_count ? 'b-status-warning' : 'b-status-online')}</div>
         <div class="log-col-main truncate-1">${escapeHtml(summary)}</div>
         <div class="log-actions">
@@ -2038,6 +2038,10 @@ function openclawLogRow(item){
         <div class="field-col">
           <div class="field-label">Action gần nhất</div>
           <div class="field-value truncate-2">${escapeHtml(summary)}</div>
+        </div>
+        <div class="field-col" style="margin-top:8px;">
+          <div class="field-label">Nguồn log</div>
+          <div class="field-value truncate-1">${escapeHtml(item.source_label || '-')} ${item.unit ? `· ${item.unit}` : ''}</div>
         </div>
         <div class="field-col" style="margin-top:8px;">
           <div class="field-label">Log gần đây</div>
@@ -2055,18 +2059,22 @@ function openclawLogRow(item){
 function renderOverview(data){
   const { system, missions, remindersData, tokens, backups, openclawLogs } = data;
   const alerts = buildOverviewAlerts(system, missions, remindersData, tokens, backups);
+  const pm2Count = missions.filter(item => item.source === 'pm2').length;
+  const userServiceCount = missions.filter(item => item.source === 'systemd-user').length;
   document.getElementById('overview_summary').innerHTML = keySummary({
     'CPU': { value: `${system.cpu_pct || 0}%`, sub: `Load ${system.load || '-'} · Host ${system.hostname || '-'}`, tone: 'cpu info' },
     'RAM': { value: `${system.ram_pct || 0}%`, sub: `${system.ram_used_mb || 0}/${system.ram_total_mb || 0} MB · Trống ${system.ram_free_mb || 0} MB`, tone: 'ram memory' },
     'Disk': { value: `${system.disk_pct || 0}%`, sub: `${system.disk_used || '-'} / ${system.disk_total || '-'} · Còn ${system.disk_free || '-'}`, tone: 'disk warning storage' },
     'Uptime': { value: `${system.uptime || '-'}`, sub: 'thời gian hoạt động VPS', tone: 'uptime system indigo' },
-    'Mission online': { value: missions.length, sub: 'PM2 process đang theo dõi', tone: 'mission process violet' },
+    'Tiến trình theo dõi': { value: missions.length, sub: `${pm2Count} PM2 · ${userServiceCount} service user`, tone: 'mission process violet' },
     'Reminder quá hạn': { value: (remindersData.reminders || []).filter(item => reminderUrgency(item) === 'critical').length, sub: 'cần xử lý ngay', tone: 'reminder overdue rose' },
     'Token cảnh báo': { value: tokens.filter(item => ['warning','expired'].includes(String(item.status || '').toLowerCase())).length, sub: 'warning / expired', tone: 'token warning amber' },
     'Backup': { value: backups.length, sub: 'mục backup khả dụng', tone: 'backup lime' },
   });
   document.getElementById('overview_groups').innerHTML = [
-    `<span class="group-chip ${toneClass('mission')}">🚀 Mission <strong>${missions.length}</strong></span>`,
+    `<span class="group-chip ${toneClass('mission')}">🚀 Tiến trình <strong>${missions.length}</strong></span>`,
+    `<span class="group-chip ${toneClass('pm2 runtime')}">🧱 PM2 <strong>${pm2Count}</strong></span>`,
+    `<span class="group-chip ${toneClass('systemd user runtime')}">🛠️ Service user <strong>${userServiceCount}</strong></span>`,
     `<span class="group-chip ${toneClass('skill')}">🧩 Skill <strong>${(state.data.skills || []).length || '-'}</strong></span>`,
     `<span class="group-chip ${toneClass('reminder')}">⏰ Reminder <strong>${(remindersData.reminders || []).length}</strong></span>`,
     `<span class="group-chip ${toneClass('backup')}">🛡️ Backup <strong>${backups.length}</strong></span>`,
@@ -2148,8 +2156,10 @@ function missionCard(item){
         </div>
       </div>
       <div class="tag-row">
+        ${labeledBadge('Nguồn', item.source_label || '-')}
         ${labeledBadge('Nhóm', item.group || 'Khác')}
         ${labeledBadge('PID', item.pid || '-')}
+        ${item.unit ? labeledBadge('Unit', item.unit) : ''}
         ${labeledBadge('Bước', item.step_count || 0)}
         ${steps}
       </div>
@@ -2164,11 +2174,13 @@ function setMissionSort(value){ state.ui.missions.sort = value; renderMissions()
 
 function renderMissions(){
   const items = sortItems(state.data.missions || [], state.ui.missions.sort);
+  const pm2Count = items.filter(x => x.source === 'pm2').length;
+  const userServiceCount = items.filter(x => x.source === 'systemd-user').length;
   document.getElementById('missions_summary').innerHTML = keySummary({
-    'Nhiệm vụ': { value: items.length, sub: 'PM2 process', tone: 'mission violet' },
+    'Tiến trình': { value: items.length, sub: `${pm2Count} PM2 · ${userServiceCount} service user`, tone: 'mission violet' },
     'Rất cao': { value: items.filter(x => x.importance === 'critical').length, sub: 'mức quan trọng cao nhất', tone: 'priority critical warning' },
     'CPU tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.cpu), 0).toFixed(1)}%`, sub: 'tức thời', tone: 'cpu info' },
-    'RAM tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.mem_mb), 0).toFixed(1)} MB`, sub: 'theo PM2', tone: 'ram memory' },
+    'RAM tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.mem_mb), 0).toFixed(1)} MB`, sub: 'PM2 + service user', tone: 'ram memory' },
     'Restart': { value: items.reduce((sum,x) => sum + numericOrZero(x.restarts), 0), sub: 'cộng dồn', tone: 'restart amber warning' },
   });
   document.getElementById('missions_groups').innerHTML = renderGroupStrip(items, 'group');

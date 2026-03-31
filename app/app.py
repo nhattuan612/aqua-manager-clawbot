@@ -5,6 +5,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import time
@@ -77,6 +78,7 @@ AUTH_PROFILES = env("AQUA_AUTH_PROFILES", os.path.join(OPENCLAW_HOME, "agents/ma
 GATEWAY_URL = env("AQUA_GATEWAY_URL", "http://127.0.0.1:18789")
 OPENCLAW_BIN = env("AQUA_OPENCLAW_BIN", shutil.which("openclaw") or "openclaw")
 PM2_BIN = env("AQUA_PM2_BIN", shutil.which("pm2") or "pm2")
+PM2_HOME = env("AQUA_PM2_HOME", os.path.join(os.path.expanduser("~"), ".pm2"))
 APP_HOST = env("AQUA_HOST", "0.0.0.0")
 APP_PORT = env_int("AQUA_PORT", 6080)
 PUBLIC_BASE_URL = str(env("AQUA_PUBLIC_BASE_URL", "")).strip().rstrip("/")
@@ -165,6 +167,29 @@ def run_cmd(cmd, timeout=5):
     """
     try:
         return subprocess.check_output(cmd, shell=True, stderr=subprocess.DEVNULL, timeout=timeout).decode().strip()
+    except Exception:
+        return ""
+
+
+def run_capture(args, timeout=8, extra_env=None):
+    """
+    Structured command helper for tools we control directly.
+    This avoids shell quoting issues and lets AQUA carry stable environment
+    hints such as PM2_HOME when the dashboard itself runs under systemd.
+    """
+    env_map = os.environ.copy()
+    if extra_env:
+        env_map.update({str(key): str(value) for key, value in extra_env.items()})
+    try:
+        proc = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
+            env=env_map,
+        )
+        return (proc.stdout or "").strip()
     except Exception:
         return ""
 
@@ -276,6 +301,15 @@ def human_size(num):
             return f"{num:.1f} {unit}"
         num /= 1024
     return "0 B"
+
+
+def format_duration(seconds):
+    seconds = max(0, int(seconds or 0))
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m {seconds % 60}s"
+    return f"{seconds // 3600}h {(seconds % 3600) // 60}m"
 
 
 def normalize_text(value):
@@ -419,15 +453,279 @@ def detect_package_group(name, desc):
 
 def detect_process_group(name, script):
     sample = normalize_text(f"{name} {script}")
+    if any(token in sample for token in ["dbus", "dconf", "gvfs", "gnome-keyring", "gpg-agent", "pulseaudio", "at-spi", "evolution"]):
+        return "Desktop / Session"
     if "dashboard" in sample:
         return "Dashboard"
     if "gateway" in sample or name == "bot":
         return "Gateway"
     if "assistant" in sample or "scheduler" in sample:
         return "Scheduler"
+    if "watchdog" in sample:
+        return "Watchdog"
     if "mission" in sample:
         return "Mission"
     return "Worker"
+
+
+def read_proc_cmdline(pid):
+    try:
+        raw = open(f"/proc/{int(pid)}/cmdline", "rb").read().replace(b"\x00", b" ").decode("utf-8", "replace").strip()
+        return raw
+    except Exception:
+        return ""
+
+
+def read_proc_cwd(pid):
+    try:
+        return os.readlink(f"/proc/{int(pid)}/cwd")
+    except Exception:
+        return ""
+
+
+def process_stats(pid):
+    """
+    Read lightweight runtime metrics for a live PID.
+    We use `ps` here because it is available on standard Ubuntu VPS images and
+    works for both PM2-managed processes and systemd user services.
+    """
+    if not pid:
+        return {"cpu": 0.0, "mem_mb": 0.0, "uptime_s": 0}
+    raw = run_capture(["ps", "-p", str(pid), "-o", "%cpu=,rss=,etimes="], timeout=5)
+    if not raw:
+        return {"cpu": 0.0, "mem_mb": 0.0, "uptime_s": 0}
+    parts = raw.split()
+    if len(parts) < 3:
+        return {"cpu": 0.0, "mem_mb": 0.0, "uptime_s": 0}
+    try:
+        cpu = round(float(parts[0]), 1)
+    except Exception:
+        cpu = 0.0
+    try:
+        mem_mb = round(float(parts[1]) / 1024, 1)
+    except Exception:
+        mem_mb = 0.0
+    try:
+        uptime_s = int(float(parts[2]))
+    except Exception:
+        uptime_s = 0
+    return {"cpu": cpu, "mem_mb": mem_mb, "uptime_s": uptime_s}
+
+
+def extract_script_from_cmdline(cmdline):
+    tokens = []
+    try:
+        tokens = shlex.split(str(cmdline or ""))
+    except Exception:
+        tokens = str(cmdline or "").split()
+    for token in tokens:
+        if token.endswith((".py", ".sh", ".js")):
+            return token
+    for token in tokens:
+        if token.startswith("/") and os.path.exists(token):
+            return token
+    return ""
+
+
+def service_names_from_systemd(scope="user"):
+    args = ["systemctl"]
+    if scope == "user":
+        args.append("--user")
+    args += ["list-units", "--type=service", "--state=running", "--plain", "--no-legend", "--no-pager"]
+    raw = run_capture(args, timeout=8)
+    names = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        names.append(line.split(None, 1)[0])
+    return names
+
+
+def load_systemd_service(name, scope="user"):
+    args = ["systemctl"]
+    if scope == "user":
+        args.append("--user")
+    args += [
+        "show",
+        name,
+        "--no-pager",
+        "--property=Id,Description,MainPID,ActiveState,SubState,ExecMainStartTimestamp,ExecStart,FragmentPath,NRestarts",
+    ]
+    raw = run_capture(args, timeout=8)
+    if not raw:
+        return None
+    data = {}
+    for line in raw.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        data[key] = value
+    return data
+
+
+def user_service_to_mission(service_name):
+    data = load_systemd_service(service_name, scope="user")
+    if not data:
+        return None
+    try:
+        pid = int(data.get("MainPID") or 0)
+    except Exception:
+        pid = 0
+    cmdline = read_proc_cmdline(pid)
+    script = extract_script_from_cmdline(cmdline)
+    cwd = read_proc_cwd(pid)
+    stats = process_stats(pid)
+    desc = data.get("Description", "") or service_name
+    updated_at = ""
+    script_size = 0
+    line_count = 0
+    steps = []
+    if script and os.path.exists(script):
+        content = safe_read(script)
+        lines = content.splitlines()
+        line_count = len(lines)
+        try:
+            stat = os.stat(script)
+            script_size = stat.st_size
+            updated_at = format_ts(stat.st_mtime)
+        except OSError:
+            pass
+        for line in lines[:6]:
+            line = line.strip()
+            if line.startswith("#") and not line.startswith("#!") and line.strip("#").strip():
+                desc = desc or line.strip("#").strip()
+        for line in lines:
+            line = line.strip()
+            if line.startswith("# Step") or line.startswith("# STEP") or line.startswith("# Bước"):
+                steps.append(line.lstrip("#").strip())
+            elif re.match(r"^# \d+\.", line):
+                steps.append(line.lstrip("#").strip())
+    status = data.get("SubState") or data.get("ActiveState") or "unknown"
+    return {
+        "id": service_name,
+        "name": service_name.removesuffix(".service"),
+        "group": detect_process_group(service_name, f"{script} {desc}"),
+        "importance": detect_importance(f"{service_name} {desc} {script}", fallback="medium"),
+        "status": status,
+        "pid": pid,
+        "uptime": format_duration(stats.get("uptime_s")),
+        "restarts": int(data.get("NRestarts") or 0) if str(data.get("NRestarts") or "").isdigit() else 0,
+        "cpu": stats.get("cpu", 0.0),
+        "mem_mb": stats.get("mem_mb", 0.0),
+        "script": script or cmdline or data.get("ExecStart", ""),
+        "script_name": os.path.basename(script) if script else (cmdline.split()[0] if cmdline else service_name),
+        "script_size": human_size(script_size),
+        "script_size_bytes": script_size,
+        "script_updated_at": updated_at,
+        "cwd": cwd,
+        "interpreter": "",
+        "exec_mode": "service",
+        "desc": desc,
+        "steps": steps[:12],
+        "step_count": len(steps),
+        "line_count": line_count,
+        "source": "systemd-user",
+        "source_label": "Service user",
+        "unit": service_name,
+        "manager": "systemd",
+    }
+
+
+def load_pm2_processes():
+    raw = run_capture([PM2_BIN, "jlist"], timeout=8, extra_env={"PM2_HOME": PM2_HOME})
+    if not raw:
+        return []
+    try:
+        return json.loads(raw)
+    except Exception:
+        return []
+
+
+def runtime_processes():
+    """
+    Build one runtime view from both PM2 and systemd user services.
+    The current VPS moved key components to systemd user units, so relying on
+    PM2 alone hides real workloads from AQUA Manager.
+    """
+    now_ms = int(datetime.datetime.now().timestamp() * 1000)
+    items = []
+    seen = set()
+
+    for proc in load_pm2_processes():
+        pm_env = proc.get("pm2_env", {})
+        script = pm_env.get("pm_exec_path", "")
+        uptime_ms = pm_env.get("pm_uptime", 0)
+        uptime_s = max(0, (now_ms - uptime_ms) // 1000) if uptime_ms else 0
+        script_size = 0
+        updated_at = ""
+        steps = []
+        desc = ""
+        line_count = 0
+        if script and os.path.exists(script):
+            content = safe_read(script)
+            lines = content.splitlines()
+            line_count = len(lines)
+            try:
+                stat = os.stat(script)
+                script_size = stat.st_size
+                updated_at = format_ts(stat.st_mtime)
+            except OSError:
+                pass
+            for line in lines[:6]:
+                line = line.strip()
+                if line.startswith("#") and not line.startswith("#!") and line.strip("#").strip():
+                    desc = desc or line.strip("#").strip()
+            for line in lines:
+                line = line.strip()
+                if line.startswith("# Step") or line.startswith("# STEP") or line.startswith("# Bước"):
+                    steps.append(line.lstrip("#").strip())
+                elif re.match(r"^# \d+\.", line):
+                    steps.append(line.lstrip("#").strip())
+
+        name = proc.get("name", "")
+        item = {
+            "id": f"pm2:{proc.get('pm_id')}",
+            "name": name,
+            "group": detect_process_group(name, script),
+            "importance": detect_importance(f"{name} {script}", fallback="medium"),
+            "status": pm_env.get("status", "unknown"),
+            "pid": proc.get("pid", 0),
+            "uptime": format_duration(uptime_s),
+            "restarts": pm_env.get("restart_time", 0),
+            "cpu": proc.get("monit", {}).get("cpu", 0),
+            "mem_mb": round(proc.get("monit", {}).get("memory", 0) / (1024 * 1024), 1),
+            "script": script,
+            "script_name": os.path.basename(script) if script else "",
+            "script_size": human_size(script_size),
+            "script_size_bytes": script_size,
+            "script_updated_at": updated_at,
+            "cwd": pm_env.get("pm_cwd", ""),
+            "interpreter": proc.get("pm2_env", {}).get("exec_interpreter", ""),
+            "exec_mode": pm_env.get("exec_mode", ""),
+            "desc": desc or name,
+            "steps": steps[:12],
+            "step_count": len(steps),
+            "line_count": line_count,
+            "source": "pm2",
+            "source_label": "PM2",
+            "unit": "",
+            "manager": "pm2",
+        }
+        items.append(item)
+        seen.add((item["source"], item["name"]))
+
+    for service_name in service_names_from_systemd(scope="user"):
+        item = user_service_to_mission(service_name)
+        if not item:
+            continue
+        key = (item["source"], item["name"])
+        if key in seen:
+            continue
+        items.append(item)
+        seen.add(key)
+
+    return sorted(items, key=lambda item: (item.get("group", ""), item.get("source_label", ""), item.get("name", "")))
 
 
 def file_metrics(path):
@@ -1063,8 +1361,18 @@ def get_tokens():
 @app.route("/api/logs/openclaw")
 @login_required
 def get_openclaw_logs():
-    names = ["bot", "GodMode_Mission", "assistant_scheduler", "aqua_dashboard"]
-    raw = run_cmd(f'"{PM2_BIN}" jlist', timeout=8)
+    targets = [
+        {"name": "bot", "service_name": "openclaw-gateway.service"},
+        {"name": "GodMode_Mission", "service_name": ""},
+        {"name": "assistant_scheduler", "service_name": "assistant-scheduler.service"},
+        {"name": "aqua_dashboard", "service_name": "aqua-dashboard.service"},
+    ]
+    service_map = {
+        "bot": "openclaw-gateway.service",
+        "assistant_scheduler": "assistant-scheduler.service",
+        "aqua_dashboard": "aqua-dashboard.service",
+    }
+    raw = run_capture([PM2_BIN, "jlist"], timeout=8, extra_env={"PM2_HOME": PM2_HOME})
     proc_map = {}
     try:
         for proc in json.loads(raw or "[]"):
@@ -1072,10 +1380,17 @@ def get_openclaw_logs():
     except Exception:
         proc_map = {}
     items = []
-    for name in names:
+    for target in targets:
+        name = target["name"]
+        service_name = target["service_name"] or service_map.get(name) or ""
         env = proc_map.get(name, {})
+        source_label = "PM2"
         out_lines = tail_lines(env.get("pm_out_log_path", ""), 12)
         err_lines = tail_lines(env.get("pm_err_log_path", ""), 12)
+        if service_name and not (out_lines or err_lines):
+            source_label = "Service user"
+            unit_log = run_capture(["journalctl", "--user", "-u", service_name, "-n", "12", "--no-pager", "-o", "short-iso"], timeout=8)
+            out_lines = [line for line in unit_log.splitlines() if line.strip()]
         last_line = (err_lines[-1] if err_lines else out_lines[-1] if out_lines else "").strip()
         items.append(
             {
@@ -1085,6 +1400,8 @@ def get_openclaw_logs():
                 "last_line": last_line,
                 "error_count": len(err_lines),
                 "has_activity": bool(out_lines or err_lines),
+                "source_label": source_label,
+                "unit": service_name or "",
             }
         )
     return jsonify(items)
@@ -1102,83 +1419,7 @@ def openclaw_access():
 @app.route("/api/missions")
 @login_required
 def get_missions():
-    raw = run_cmd(f'"{PM2_BIN}" jlist', timeout=8)
-    if not raw:
-        return jsonify([])
-    try:
-        procs = json.loads(raw)
-    except Exception:
-        return jsonify([])
-
-    now_ms = int(datetime.datetime.now().timestamp() * 1000)
-    missions = []
-    for proc in procs:
-        pm_env = proc.get("pm2_env", {})
-        script = pm_env.get("pm_exec_path", "")
-        uptime_ms = pm_env.get("pm_uptime", 0)
-        uptime_s = max(0, (now_ms - uptime_ms) // 1000) if uptime_ms else 0
-        if uptime_s < 60:
-            uptime = f"{uptime_s}s"
-        elif uptime_s < 3600:
-            uptime = f"{uptime_s // 60}m {uptime_s % 60}s"
-        else:
-            uptime = f"{uptime_s // 3600}h {(uptime_s % 3600) // 60}m"
-
-        script_size = 0
-        updated_at = ""
-        steps = []
-        desc = ""
-        line_count = 0
-        if script and os.path.exists(script):
-            content = safe_read(script)
-            lines = content.splitlines()
-            line_count = len(lines)
-            try:
-                stat = os.stat(script)
-                script_size = stat.st_size
-                updated_at = format_ts(stat.st_mtime)
-            except OSError:
-                pass
-            for line in lines[:6]:
-                line = line.strip()
-                if line.startswith("#") and not line.startswith("#!") and line.strip("#").strip():
-                    desc = desc or line.strip("#").strip()
-            for line in lines:
-                line = line.strip()
-                if line.startswith("# Step") or line.startswith("# STEP") or line.startswith("# Bước"):
-                    steps.append(line.lstrip("#").strip())
-                elif re.match(r"^# \d+\.", line):
-                    steps.append(line.lstrip("#").strip())
-
-        group = detect_process_group(proc.get("name", ""), script)
-        importance = detect_importance(f"{proc.get('name','')} {script}", fallback="medium")
-        missions.append(
-            {
-                "id": proc.get("pm_id"),
-                "name": proc.get("name", ""),
-                "group": group,
-                "importance": importance,
-                "status": pm_env.get("status", "unknown"),
-                "pid": proc.get("pid", 0),
-                "uptime": uptime,
-                "restarts": pm_env.get("restart_time", 0),
-                "cpu": proc.get("monit", {}).get("cpu", 0),
-                "mem_mb": round(proc.get("monit", {}).get("memory", 0) / (1024 * 1024), 1),
-                "script": script,
-                "script_name": os.path.basename(script) if script else "",
-                "script_size": human_size(script_size),
-                "script_size_bytes": script_size,
-                "script_updated_at": updated_at,
-                "cwd": pm_env.get("pm_cwd", ""),
-                "interpreter": proc.get("pm2_env", {}).get("exec_interpreter", ""),
-                "exec_mode": pm_env.get("exec_mode", ""),
-                "desc": desc or proc.get("name", ""),
-                "steps": steps[:12],
-                "step_count": len(steps),
-                "line_count": line_count,
-            }
-        )
-    return jsonify(sorted(missions, key=lambda item: (item.get("group", ""), item.get("id", 0))))
+    return jsonify(runtime_processes())
 
 
 @app.route("/api/reminders")

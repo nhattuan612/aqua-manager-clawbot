@@ -25,6 +25,12 @@ Thứ tự đọc khuyến nghị:
 6. `06-STATES-SEMANTICS.md`
 7. `07-AI-IMPLEMENTATION-RULES.md`
 8. `08-UI-REVIEW-CHECKLIST.md`
+9. `09-COMPONENT-RECIPES.md`
+10. `10-CSS-TOKEN-MAP.md`
+11. `11-PAGE-PATTERNS.md`
+12. `12-CONTENT-LANGUAGE.md`
+13. `13-ICONOGRAPHY.md`
+14. `14-DENSITY-MODES.md`
 
 Quy tắc quan trọng:
 - Nếu phải chọn giữa “đẹp” và “rõ để vận hành”, chọn vế thứ hai.

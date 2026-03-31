@@ -86,6 +86,26 @@ SSH_HOST = str(env("AQUA_SSH_HOST", "")).strip()
 SSH_PORT = str(env("AQUA_SSH_PORT", "22")).strip() or "22"
 SSH_USER = str(env("AQUA_SSH_USER", "")).strip()
 TUNNEL_LOCAL_PORT = env_int("AQUA_GATEWAY_TUNNEL_LOCAL_PORT", 18789)
+SYSTEM_SERVICE_ALLOWLIST = [
+    name.strip()
+    for name in str(
+        env(
+            "AQUA_SYSTEM_SERVICE_ALLOWLIST",
+            "ssh.service,xrdp.service,xrdp-sesman.service,chrome-remote-desktop@ubuntu.service,anydesk.service,NetworkManager.service,qemu-guest-agent.service,lightdm.service",
+        )
+    ).split(",")
+    if name.strip()
+]
+SYSTEM_SERVICE_SPECS = [
+    {"unit": "ssh.service", "name": "ssh", "patterns": ["/usr/sbin/sshd", "sshd: /usr/sbin/sshd -D"], "desc": "OpenBSD Secure Shell server"},
+    {"unit": "xrdp.service", "name": "xrdp", "patterns": ["/usr/sbin/xrdp"], "desc": "xrdp daemon"},
+    {"unit": "xrdp-sesman.service", "name": "xrdp-sesman", "patterns": ["/usr/sbin/xrdp-sesman"], "desc": "xrdp session manager"},
+    {"unit": "chrome-remote-desktop@ubuntu.service", "name": "chrome-remote-desktop", "patterns": ["chrome-remote-desktop", "chrome-remote-desktop-host"], "desc": "Chrome Remote Desktop"},
+    {"unit": "anydesk.service", "name": "anydesk", "patterns": ["/usr/bin/anydesk --service"], "desc": "AnyDesk"},
+    {"unit": "NetworkManager.service", "name": "NetworkManager", "patterns": ["/usr/sbin/NetworkManager --no-daemon"], "desc": "Network Manager"},
+    {"unit": "qemu-guest-agent.service", "name": "qemu-guest-agent", "patterns": ["/usr/sbin/qemu-ga"], "desc": "QEMU Guest Agent"},
+    {"unit": "lightdm.service", "name": "lightdm", "patterns": ["/usr/sbin/lightdm"], "desc": "Light Display Manager"},
+]
 
 app.secret_key = env("AQUA_SECRET_KEY", "AQUA_DASHBOARD_SECRET")
 # The package ships with a simple default so first-time installs can log in
@@ -512,6 +532,29 @@ def process_stats(pid):
     return {"cpu": cpu, "mem_mb": mem_mb, "uptime_s": uptime_s}
 
 
+def ps_snapshot():
+    raw = run_capture(["ps", "-eo", "pid=,ppid=,user=,stat=,comm=,args="], timeout=8)
+    rows = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(None, 5)
+        if len(parts) < 6:
+            continue
+        pid_s, ppid_s, user, stat, comm, args = parts
+        try:
+            pid = int(pid_s)
+        except Exception:
+            pid = 0
+        try:
+            ppid = int(ppid_s)
+        except Exception:
+            ppid = 0
+        rows.append({"pid": pid, "ppid": ppid, "user": user, "stat": stat, "comm": comm, "args": args})
+    return rows
+
+
 def extract_script_from_cmdline(cmdline):
     tokens = []
     try:
@@ -632,6 +675,104 @@ def user_service_to_mission(service_name):
     }
 
 
+def system_service_to_mission(service_name):
+    data = load_systemd_service(service_name, scope="system")
+    if not data:
+        return None
+    try:
+        pid = int(data.get("MainPID") or 0)
+    except Exception:
+        pid = 0
+    cmdline = read_proc_cmdline(pid)
+    script = extract_script_from_cmdline(cmdline)
+    cwd = read_proc_cwd(pid)
+    stats = process_stats(pid)
+    desc = data.get("Description", "") or service_name
+    status = data.get("SubState") or data.get("ActiveState") or "unknown"
+    return {
+        "id": service_name,
+        "name": service_name.removesuffix(".service"),
+        "group": "System service",
+        "importance": detect_importance(f"{service_name} {desc} {cmdline}", fallback="medium"),
+        "status": status,
+        "pid": pid,
+        "uptime": format_duration(stats.get("uptime_s")),
+        "restarts": int(data.get("NRestarts") or 0) if str(data.get("NRestarts") or "").isdigit() else 0,
+        "cpu": stats.get("cpu", 0.0),
+        "mem_mb": stats.get("mem_mb", 0.0),
+        "script": script or cmdline or data.get("ExecStart", ""),
+        "script_name": os.path.basename(script) if script else (cmdline.split()[0] if cmdline else service_name),
+        "script_size": human_size(0),
+        "script_size_bytes": 0,
+        "script_updated_at": "",
+        "cwd": cwd,
+        "interpreter": "",
+        "exec_mode": "service",
+        "desc": desc,
+        "steps": [],
+        "step_count": 0,
+        "line_count": 0,
+        "source": "systemd-system",
+        "source_label": "System service",
+        "unit": service_name,
+        "manager": "systemd",
+    }
+
+
+def important_system_service_missions():
+    """
+    Use `ps` as the primary signal for important OS services.
+    This is more reliable inside the dashboard service context than depending
+    on `systemctl` DBus access from within the web process.
+    """
+    rows = ps_snapshot()
+    items = []
+    for spec in SYSTEM_SERVICE_SPECS:
+        if spec["unit"] not in SYSTEM_SERVICE_ALLOWLIST:
+            continue
+        row = None
+        for candidate in rows:
+            hay = f"{candidate.get('comm','')} {candidate.get('args','')}"
+            if any(pattern in hay for pattern in spec["patterns"]):
+                row = candidate
+                break
+        if not row:
+            continue
+        pid = row.get("pid", 0)
+        stats = process_stats(pid)
+        items.append(
+            {
+                "id": spec["unit"],
+                "name": spec["name"],
+                "group": "System service",
+                "importance": detect_importance(f"{spec['unit']} {spec['name']} {spec['desc']}", fallback="medium"),
+                "status": "running",
+                "pid": pid,
+                "uptime": format_duration(stats.get("uptime_s")),
+                "restarts": 0,
+                "cpu": stats.get("cpu", 0.0),
+                "mem_mb": stats.get("mem_mb", 0.0),
+                "script": row.get("args", ""),
+                "script_name": row.get("comm", ""),
+                "script_size": human_size(0),
+                "script_size_bytes": 0,
+                "script_updated_at": "",
+                "cwd": "",
+                "interpreter": "",
+                "exec_mode": "service",
+                "desc": spec["desc"],
+                "steps": [],
+                "step_count": 0,
+                "line_count": 0,
+                "source": "systemd-system",
+                "source_label": "System service",
+                "unit": spec["unit"],
+                "manager": "systemd",
+            }
+        )
+    return items
+
+
 def load_pm2_processes():
     raw = run_capture([PM2_BIN, "jlist"], timeout=8, extra_env={"PM2_HOME": PM2_HOME})
     if not raw:
@@ -717,6 +858,15 @@ def runtime_processes():
 
     for service_name in service_names_from_systemd(scope="user"):
         item = user_service_to_mission(service_name)
+        if not item:
+            continue
+        key = (item["source"], item["name"])
+        if key in seen:
+            continue
+        items.append(item)
+        seen.add(key)
+
+    for item in important_system_service_missions():
         if not item:
             continue
         key = (item["source"], item["name"])

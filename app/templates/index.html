@@ -1511,7 +1511,7 @@ const state = {
   confirmAction: null,
   table: {},
   ui: {
-    missions: { sort: 'importance', source: 'all' },
+    missions: { sort: 'importance', source: 'all', unitType: 'all', state: 'all' },
     tokens: { sort: 'priority', scope: 'all' },
     reminders: { scope: 'all' },
     knowledge: { scope: 'all' },
@@ -1600,18 +1600,30 @@ function tableShell(tableId, headers, body){
 
 function statusLabel(status){
   const text = String(status || '').toLowerCase();
-  if (/(online|active|ok)/.test(text)) return 'Đang chạy';
+  if (/(failed|error)/.test(text)) return 'Lỗi';
+  if (/(activating)/.test(text)) return 'Đang khởi động';
+  if (/(deactivating)/.test(text)) return 'Đang dừng';
+  if (/(running|online|active|ok|waiting)/.test(text)) return 'Đang chạy';
+  if (/(inactive|dead|stopped|stop)/.test(text)) return 'Không chạy';
+  if (/loaded/.test(text)) return 'Đã nạp';
+  if (/not-found/.test(text)) return 'Không có';
+  if (/enabled/.test(text)) return 'Đang bật';
+  if (/disabled/.test(text)) return 'Đang tắt';
+  if (/static/.test(text)) return 'Tĩnh';
+  if (/masked/.test(text)) return 'Đã khoá';
   if (/(warning|pending)/.test(text)) return 'Cảnh báo';
   if (/expired/.test(text)) return 'Hết hạn';
-  if (/unused|not_used|disabled/.test(text)) return 'Chưa xài';
+  if (/unused|not_used/.test(text)) return 'Chưa xài';
   if (/done/.test(text)) return 'Hoàn tất';
   return status || 'Không rõ';
 }
 
 function statusClass(status){
   const text = String(status || '').toLowerCase();
-  if (/(online|active|ok)/.test(text)) return 'b-status-online';
-  if (/(warning|pending)/.test(text)) return 'b-status-warning';
+  if (/(failed|error)/.test(text)) return 'b-status-expired';
+  if (/(activating|deactivating|warning|pending)/.test(text)) return 'b-status-warning';
+  if (/(running|online|active|ok|waiting|enabled)/.test(text)) return 'b-status-online';
+  if (/(loaded|static)/.test(text)) return 'b-kind';
   return 'b-status-expired';
 }
 
@@ -1669,6 +1681,7 @@ function dotForStatus(status){
 
 function groupIcon(group){
   const text = String(group || '').toLowerCase();
+  if (text.includes('timer')) return '⏲️';
   if (text.includes('dashboard')) return '🖥️';
   if (text.includes('gateway')) return '🌐';
   if (text.includes('mission')) return '🚀';
@@ -1693,6 +1706,7 @@ function toneBucket(...parts){
   if (/(memory|learning|soul|user|knowledge|tàng thư|identity|agents|heartbeat)/.test(text)) return 'emerald';
   if (/(reminder|nhắc việc|proposal|đề xuất|daily|báo cáo|log lỗi)/.test(text)) return 'rose';
   if (/(warning|cảnh báo|critical|cao|quá hạn|restart)/.test(text)) return 'amber';
+  if (/(timer|schedule|lịch|watchdog)/.test(text)) return 'cyan';
   if (/(dashboard|openclaw|gateway|tunnel|proxy|host|route|terminal)/.test(text)) return 'cyan';
   if (/(mission|nhiệm vụ|process|pm2|browser|trading|system|cpu|ram|disk|uptime)/.test(text)) return 'sky';
   return 'slate';
@@ -2090,24 +2104,28 @@ function renderOverview(data){
   const { system, missions, remindersData, tokens, backups, openclawLogs } = data;
   const alerts = buildOverviewAlerts(system, missions, remindersData, tokens, backups);
   const pm2Count = missions.filter(item => item.source === 'pm2').length;
-  const userServiceCount = missions.filter(item => item.source === 'systemd-user').length;
-  const systemServiceItems = missions.filter(item => item.source === 'systemd-system');
-  const systemServiceCount = systemServiceItems.length;
+  const userServiceCount = missions.filter(item => item.source === 'systemd-user' && item.unit_type === 'service').length;
+  const userTimerCount = missions.filter(item => item.source === 'systemd-user' && item.unit_type === 'timer').length;
+  const systemServiceCount = missions.filter(item => item.source === 'systemd-system' && item.unit_type === 'service').length;
+  const systemTimerCount = missions.filter(item => item.source === 'systemd-system' && item.unit_type === 'timer').length;
+  const overviewSystemItems = missions.filter(item => item.source === 'systemd-system' && item.important_system);
   document.getElementById('overview_summary').innerHTML = keySummary({
     'CPU': { value: `${system.cpu_pct || 0}%`, sub: `Load ${system.load || '-'} · Host ${system.hostname || '-'}`, tone: 'cpu info' },
     'RAM': { value: `${system.ram_pct || 0}%`, sub: `${system.ram_used_mb || 0}/${system.ram_total_mb || 0} MB · Trống ${system.ram_free_mb || 0} MB`, tone: 'ram memory' },
     'Disk': { value: `${system.disk_pct || 0}%`, sub: `${system.disk_used || '-'} / ${system.disk_total || '-'} · Còn ${system.disk_free || '-'}`, tone: 'disk warning storage' },
     'Uptime': { value: `${system.uptime || '-'}`, sub: 'thời gian hoạt động VPS', tone: 'uptime system indigo' },
-    'Tiến trình theo dõi': { value: missions.length, sub: `${pm2Count} PM2 · ${userServiceCount} service user · ${systemServiceCount} system`, tone: 'mission process violet' },
+    'Tác vụ quét được': { value: missions.length, sub: `${pm2Count} PM2 · ${userServiceCount} service user · ${userTimerCount} timer user · ${systemServiceCount} service system · ${systemTimerCount} timer system`, tone: 'mission process violet' },
     'Reminder quá hạn': { value: (remindersData.reminders || []).filter(item => reminderUrgency(item) === 'critical').length, sub: 'cần xử lý ngay', tone: 'reminder overdue rose' },
     'Token cảnh báo': { value: tokens.filter(item => ['warning','expired'].includes(String(item.status || '').toLowerCase())).length, sub: 'warning / expired', tone: 'token warning amber' },
     'Backup': { value: backups.length, sub: 'mục backup khả dụng', tone: 'backup lime' },
   });
   document.getElementById('overview_groups').innerHTML = [
-    `<span class="group-chip ${toneClass('mission')}">🚀 Tiến trình <strong>${missions.length}</strong></span>`,
+    `<span class="group-chip ${toneClass('mission')}">🚀 Tác vụ <strong>${missions.length}</strong></span>`,
     `<span class="group-chip ${toneClass('pm2 runtime')}">🧱 PM2 <strong>${pm2Count}</strong></span>`,
     `<span class="group-chip ${toneClass('systemd user runtime')}">🛠️ Service user <strong>${userServiceCount}</strong></span>`,
+    `<span class="group-chip ${toneClass('timer user runtime')}">⏲️ Timer user <strong>${userTimerCount}</strong></span>`,
     `<span class="group-chip ${toneClass('systemd system runtime')}">🖧 System service <strong>${systemServiceCount}</strong></span>`,
+    `<span class="group-chip ${toneClass('system timer runtime')}">⏱️ System timer <strong>${systemTimerCount}</strong></span>`,
     `<span class="group-chip ${toneClass('skill')}">🧩 Skill <strong>${(state.data.skills || []).length || '-'}</strong></span>`,
     `<span class="group-chip ${toneClass('reminder')}">⏰ Reminder <strong>${(remindersData.reminders || []).length}</strong></span>`,
     `<span class="group-chip ${toneClass('backup')}">🛡️ Backup <strong>${backups.length}</strong></span>`,
@@ -2120,14 +2138,14 @@ function renderOverview(data){
   document.getElementById('overview_table').innerHTML = `
     <div class="card-grid-tight">${alerts.map(overviewAlertCard).join('')}</div>
   `;
-  document.getElementById('overview_system').innerHTML = systemServiceItems.length ? `
+  document.getElementById('overview_system').innerHTML = overviewSystemItems.length ? `
     <div class="panel-head" style="margin-top:12px;margin-bottom:6px;">
       <div>
         <div class="section-title" style="margin:0;">🖧 System services quan trọng</div>
         <div class="muted tiny">Chỉ hiển thị các service OS quan trọng đã chọn lọc để tránh làm dashboard quá nặng.</div>
       </div>
     </div>
-    <div class="card-grid-tight">${systemServiceItems.map(systemServiceCard).join('')}</div>
+    <div class="card-grid-tight">${overviewSystemItems.map(systemServiceCard).join('')}</div>
   ` : '';
   document.getElementById('overview_logs').innerHTML = `
     <div class="panel-head" style="margin-top:12px;margin-bottom:6px;">
@@ -2171,6 +2189,25 @@ async function loadOverview(force){
 
 function missionCard(item){
   const steps = (item.steps || []).slice(0, 3).map(step => `<span class="tag">${escapeHtml(truncateText(step, 28))}</span>`).join('');
+  const isProcess = item.unit_type === 'process';
+  const isTimer = item.unit_type === 'timer';
+  const topPills = isProcess ? `
+      <div class="pill-row">
+        <span class="kv-pill"><strong>Uptime</strong> ${escapeHtml(item.uptime || '-')}</span>
+        <span class="kv-pill"><strong>CPU</strong> ${escapeHtml(item.cpu)}%</span>
+        <span class="kv-pill"><strong>RAM</strong> ${escapeHtml(item.mem_mb)} MB</span>
+        <span class="kv-pill"><strong>Restart</strong> ${escapeHtml(item.restarts)}</span>
+      </div>
+  ` : '';
+  const primaryPath = shortPath((isTimer ? item.fragment_path : (item.script || item.fragment_path)) || '-', 72);
+  const primaryLabel = isTimer ? 'Unit file' : 'Script';
+  const rightTopLabel = isTimer ? 'Lần chạy tới' : 'Cập nhật';
+  const rightTopValue = isTimer ? (item.next_run || '-') : (item.script_updated_at || '-');
+  const lowerLeftLabel = isTimer ? 'Kích hoạt service' : 'Thư mục';
+  const lowerLeftValue = isTimer ? (item.triggers || '-') : shortPath(item.cwd || item.fragment_path || '-', 68);
+  const lowerRightLabel = isTimer ? 'Lần chạy gần nhất' : 'Mode';
+  const lowerRightValue = isTimer ? (item.last_run || '-') : (item.exec_mode || '-');
+  const linkBadge = item.triggered_by ? labeledBadge('Bị kích bởi', item.triggered_by) : item.triggers ? labeledBadge('Kích hoạt', item.triggers) : '';
   return `
     <div class="dense-card mission-card ${toneClass(item.group, item.importance, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
       <div class="card-top">
@@ -2183,25 +2220,24 @@ function missionCard(item){
         ${priorityBadge(item.importance)}
       </div>
       </div>
-      <div class="pill-row">
-        <span class="kv-pill"><strong>Uptime</strong> ${escapeHtml(item.uptime || '-')}</span>
-        <span class="kv-pill"><strong>CPU</strong> ${escapeHtml(item.cpu)}%</span>
-        <span class="kv-pill"><strong>RAM</strong> ${escapeHtml(item.mem_mb)} MB</span>
-        <span class="kv-pill"><strong>Restart</strong> ${escapeHtml(item.restarts)}</span>
-      </div>
+      ${topPills}
       <div class="mission-detail-grid">
-        <div class="field-col span-2"><div class="field-label">Script</div><div class="field-value mono truncate-1">${escapeHtml(shortPath(item.script || '-', 72))}</div></div>
-        <div class="field-col"><div class="field-label">Cập nhật</div><div class="field-value truncate-1">${escapeHtml(item.script_updated_at || '-')}</div></div>
-        <div class="field-col span-2"><div class="field-label">Thư mục</div><div class="field-value mono truncate-1">${escapeHtml(shortPath(item.cwd || '-', 68))}</div></div>
-        <div class="field-col"><div class="field-label">Mode</div><div class="field-value truncate-1">${escapeHtml(item.exec_mode || '-')}</div></div>
+        <div class="field-col span-2"><div class="field-label">${primaryLabel}</div><div class="field-value mono truncate-1">${escapeHtml(primaryPath)}</div></div>
+        <div class="field-col"><div class="field-label">${rightTopLabel}</div><div class="field-value truncate-1">${escapeHtml(rightTopValue)}</div></div>
+        <div class="field-col span-2"><div class="field-label">${lowerLeftLabel}</div><div class="field-value mono truncate-1">${escapeHtml(lowerLeftValue)}</div></div>
+        <div class="field-col"><div class="field-label">${lowerRightLabel}</div><div class="field-value truncate-1">${escapeHtml(lowerRightValue)}</div></div>
         <div class="field-col span-3">
           <div class="field-label">Mô tả</div>
           <div class="field-value truncate-2">${escapeHtml(truncateText(item.desc || '-', 160))}</div>
         </div>
       </div>
       <div class="tag-row">
+        ${labeledBadge('Loại', item.unit_type_label || '-')}
         ${labeledBadge('Nguồn', item.source_label || '-')}
         ${labeledBadge('Nhóm', item.group || 'Khác')}
+        ${item.unit_file_state ? statusBadge(item.unit_file_state, 'File unit') : ''}
+        ${item.load_state ? statusBadge(item.load_state, 'Load') : ''}
+        ${linkBadge}
         ${labeledBadge('PID', item.pid || '-')}
         ${item.unit ? labeledBadge('Unit', item.unit) : ''}
         ${labeledBadge('Bước', item.step_count || 0)}
@@ -2216,26 +2252,54 @@ function missionCard(item){
 
 function setMissionSort(value){ state.ui.missions.sort = value; renderMissions(); }
 function setMissionSource(value){ state.ui.missions.source = value; renderMissions(); }
+function setMissionUnitType(value){ state.ui.missions.unitType = value; renderMissions(); }
+function setMissionState(value){ state.ui.missions.state = value; renderMissions(); }
+
+function missionIsActive(item){
+  const text = `${item.active_state || ''} ${item.sub_state || ''} ${item.status || ''}`.toLowerCase();
+  return /(active|running|waiting|online|ok)/.test(text) && !/(inactive|dead|failed|error|disabled)/.test(text);
+}
+
+function missionMatchesState(item, filterValue){
+  if (filterValue === 'all') return true;
+  const text = `${item.active_state || ''} ${item.sub_state || ''} ${item.status || ''}`.toLowerCase();
+  const unitFileState = String(item.unit_file_state || '').toLowerCase();
+  if (filterValue === 'active') return missionIsActive(item);
+  if (filterValue === 'inactive') return !missionIsActive(item);
+  if (filterValue === 'enabled') return /enabled/.test(unitFileState);
+  if (filterValue === 'disabled') return /disabled/.test(unitFileState);
+  if (filterValue === 'failed') return /(failed|error)/.test(text);
+  return true;
+}
 
 function renderMissions(){
   const allItems = state.data.missions || [];
   const sourceFilter = state.ui.missions.source || 'all';
-  const filteredItems = sourceFilter === 'all' ? allItems : allItems.filter(x => x.source === sourceFilter);
+  const unitTypeFilter = state.ui.missions.unitType || 'all';
+  const stateFilter = state.ui.missions.state || 'all';
+  const filteredItems = allItems
+    .filter(x => sourceFilter === 'all' ? true : x.source === sourceFilter)
+    .filter(x => unitTypeFilter === 'all' ? true : x.unit_type === unitTypeFilter)
+    .filter(x => missionMatchesState(x, stateFilter));
   const items = sortItems(filteredItems, state.ui.missions.sort);
   const pm2Count = allItems.filter(x => x.source === 'pm2').length;
-  const userServiceCount = allItems.filter(x => x.source === 'systemd-user').length;
-  const systemServiceCount = allItems.filter(x => x.source === 'systemd-system').length;
+  const userServiceCount = allItems.filter(x => x.source === 'systemd-user' && x.unit_type === 'service').length;
+  const userTimerCount = allItems.filter(x => x.source === 'systemd-user' && x.unit_type === 'timer').length;
+  const systemServiceCount = allItems.filter(x => x.source === 'systemd-system' && x.unit_type === 'service').length;
+  const systemTimerCount = allItems.filter(x => x.source === 'systemd-system' && x.unit_type === 'timer').length;
   document.getElementById('missions_summary').innerHTML = keySummary({
-    'Tiến trình': { value: items.length, sub: `Hiển thị ${items.length}/${allItems.length} · ${pm2Count} PM2 · ${userServiceCount} service user · ${systemServiceCount} system`, tone: 'mission violet' },
+    'Tác vụ': { value: items.length, sub: `Hiển thị ${items.length}/${allItems.length} · ${pm2Count} PM2 · ${userServiceCount} service user · ${userTimerCount} timer user · ${systemServiceCount} service system · ${systemTimerCount} timer system`, tone: 'mission violet' },
     'Rất cao': { value: items.filter(x => x.importance === 'critical').length, sub: 'mức quan trọng cao nhất', tone: 'priority critical warning' },
-    'CPU tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.cpu), 0).toFixed(1)}%`, sub: 'tức thời', tone: 'cpu info' },
-    'RAM tổng': { value: `${items.reduce((sum,x) => sum + numericOrZero(x.mem_mb), 0).toFixed(1)} MB`, sub: 'PM2 + service user + system', tone: 'ram memory' },
-    'Restart': { value: items.reduce((sum,x) => sum + numericOrZero(x.restarts), 0), sub: 'cộng dồn', tone: 'restart amber warning' },
+    'Timer': { value: items.filter(x => x.unit_type === 'timer').length, sub: 'service được lên lịch', tone: 'timer cyan' },
+    'Đang chạy': { value: items.filter(x => missionIsActive(x)).length, sub: 'active / waiting / running', tone: 'cpu info' },
+    'Không chạy': { value: items.filter(x => !missionIsActive(x)).length, sub: 'inactive / dead / disabled', tone: 'ram memory' },
+    'Restart': { value: items.reduce((sum,x) => sum + numericOrZero(x.restarts), 0), sub: 'cộng dồn ở service/process', tone: 'restart amber warning' },
   });
-  document.getElementById('missions_groups').innerHTML = renderGroupStrip(items, 'group');
+  document.getElementById('missions_groups').innerHTML = renderGroupStrip(items, 'section');
   renderControls('missions_controls', [
     selectControl('Sắp xếp', state.ui.missions.sort, [
       { value: 'importance', label: 'Ưu tiên' },
+      { value: 'section', label: 'Khối' },
       { value: 'group', label: 'Nhóm' },
       { value: 'name', label: 'Tên' },
       { value: 'cpu', label: 'CPU' },
@@ -2245,14 +2309,28 @@ function renderMissions(){
     selectControl('Nguồn', state.ui.missions.source, [
       { value: 'all', label: 'Tất cả' },
       { value: 'pm2', label: 'PM2' },
-      { value: 'systemd-user', label: 'Service user' },
-      { value: 'systemd-system', label: 'System service' },
+      { value: 'systemd-user', label: 'Systemd user' },
+      { value: 'systemd-system', label: 'Systemd system' },
     ], 'setMissionSource'),
+    selectControl('Loại', state.ui.missions.unitType, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'process', label: 'Process' },
+      { value: 'service', label: 'Service' },
+      { value: 'timer', label: 'Timer' },
+    ], 'setMissionUnitType'),
+    selectControl('Trạng thái', state.ui.missions.state, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'active', label: 'Đang chạy' },
+      { value: 'inactive', label: 'Không chạy' },
+      { value: 'enabled', label: 'Đang bật' },
+      { value: 'disabled', label: 'Đang tắt' },
+      { value: 'failed', label: 'Lỗi' },
+    ], 'setMissionState'),
     '<span class="controls-spacer"></span>',
     '<button class="btn" onclick="toggleDetails(\'missions\', true)">Mở hết</button>',
     '<button class="btn" onclick="toggleDetails(\'missions\', false)">Thu gọn</button>',
   ]);
-  document.getElementById('missions_table').innerHTML = items.length ? renderGroupDetails('missions', groupBy(items, 'group'), missionCard, 'card-grid') : emptyHtml('Không có tiến trình nào.');
+  document.getElementById('missions_table').innerHTML = items.length ? renderGroupDetails('missions', groupBy(items, 'section'), missionCard, 'card-grid') : emptyHtml('Không có tác vụ nào.');
   applySearch();
 }
 

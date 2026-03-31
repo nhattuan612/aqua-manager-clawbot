@@ -570,12 +570,132 @@ def extract_script_from_cmdline(cmdline):
     return ""
 
 
+def systemctl_base(scope="user"):
+    args = ["systemctl"]
+    if scope == "user":
+        args.append("--user")
+    return args
+
+
+def systemd_extra_env(scope="user"):
+    """
+    AQUA itself runs under a user service, so some VPSes do not expose the
+    full interactive login environment to child `systemctl --user` calls.
+    Supplying the standard user runtime bus paths keeps timer discovery
+    consistent between SSH shells and the dashboard service.
+    """
+    if scope != "user":
+        return None
+    uid = os.getuid()
+    runtime_dir = f"/run/user/{uid}"
+    return {
+        "XDG_RUNTIME_DIR": runtime_dir,
+        "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime_dir}/bus",
+    }
+
+
+def systemd_source_label(scope, unit_type):
+    if scope == "user" and unit_type == "timer":
+        return "Timer user"
+    if scope == "user":
+        return "Service user"
+    if unit_type == "timer":
+        return "System timer"
+    return "System service"
+
+
+def systemd_section_label(scope, unit_type):
+    if scope == "user" and unit_type == "timer":
+        return "Timer user"
+    if scope == "user":
+        return "Service user"
+    if unit_type == "timer":
+        return "System timer"
+    return "System service"
+
+
+def list_systemd_unit_files(scope="user", unit_type="service"):
+    """
+    Discover installed unit files, not just loaded/running ones.
+    This is the key difference that lets AQUA show timers/services such as
+    `nhiem-vu-quan-sat.service` even while they are currently inactive.
+    """
+    raw = run_capture(
+        systemctl_base(scope) + ["list-unit-files", "--type", unit_type, "--plain", "--no-legend", "--no-pager"],
+        timeout=8,
+        extra_env=systemd_extra_env(scope),
+    )
+    items = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(None, 2)
+        if not parts:
+            continue
+        unit = parts[0]
+        if not unit.endswith(f".{unit_type}"):
+            continue
+        items[unit] = {
+            "unit": unit,
+            "unit_file_state": parts[1] if len(parts) > 1 else "",
+            "vendor_preset": parts[2] if len(parts) > 2 else "",
+        }
+    return items
+
+
+def list_systemd_loaded_units(scope="user", unit_type="service"):
+    raw = run_capture(
+        systemctl_base(scope) + ["list-units", "--all", "--type", unit_type, "--plain", "--no-legend", "--no-pager"],
+        timeout=8,
+        extra_env=systemd_extra_env(scope),
+    )
+    items = {}
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(None, 4)
+        if len(parts) < 4:
+            continue
+        unit, load_state, active_state, sub_state = parts[:4]
+        if not unit.endswith(f".{unit_type}"):
+            continue
+        items[unit] = {
+            "unit": unit,
+            "load_state": load_state,
+            "active_state": active_state,
+            "sub_state": sub_state,
+            "description": parts[4] if len(parts) > 4 else unit,
+        }
+    return items
+
+
+def list_systemd_triggers(scope="user"):
+    """
+    Build a reverse index of timer -> triggered service from currently loaded
+    timers. Even if a service is inactive, this lets the UI explain why it
+    exists and what wakes it up.
+    """
+    mapping = {}
+    for unit_type in ("timer",):
+        loaded = list_systemd_loaded_units(scope, unit_type)
+        for name in loaded:
+            detail = load_systemd_unit(name, scope=scope)
+            if not detail:
+                continue
+            target = str(detail.get("Triggers") or "").strip()
+            if target:
+                mapping[target] = name
+    return mapping
+
+
 def service_names_from_systemd(scope="user"):
     args = ["systemctl"]
     if scope == "user":
         args.append("--user")
     args += ["list-units", "--type=service", "--state=running", "--plain", "--no-legend", "--no-pager"]
-    raw = run_capture(args, timeout=8)
+    raw = run_capture(args, timeout=8, extra_env=systemd_extra_env(scope))
     names = []
     for line in raw.splitlines():
         line = line.strip()
@@ -585,15 +705,12 @@ def service_names_from_systemd(scope="user"):
     return names
 
 
-def load_systemd_service(name, scope="user"):
-    args = ["systemctl"]
-    if scope == "user":
-        args.append("--user")
-    args += [
+def load_systemd_unit(name, scope="user"):
+    args = systemctl_base(scope) + [
         "show",
         name,
         "--no-pager",
-        "--property=Id,Description,MainPID,ActiveState,SubState,ExecMainStartTimestamp,ExecStart,FragmentPath,NRestarts",
+        "--property=Id,Description,MainPID,ActiveState,SubState,LoadState,UnitFileState,ExecMainStartTimestamp,ExecStart,FragmentPath,NRestarts,Triggers,TriggeredBy,NextElapseUSecRealtime,LastTriggerUSec,Names",
     ]
     raw = run_capture(args, timeout=8)
     if not raw:
@@ -607,8 +724,125 @@ def load_systemd_service(name, scope="user"):
     return data
 
 
+def is_interesting_systemd_unit(name, unit_type, description=""):
+    sample = normalize_text(f"{name} {description}")
+    if unit_type == "timer":
+        return True
+    needles = [
+        "openclaw",
+        "aqua",
+        "assistant",
+        "watchdog",
+        "nhiem-vu",
+        "mission",
+        "scheduler",
+        "dashboard",
+        "gateway",
+    ]
+    return any(needle in sample for needle in needles)
+
+
+def file_stat_summary(path):
+    if not path or not os.path.exists(path):
+        return {"size_bytes": 0, "size_human": "0 B", "updated_at": ""}
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return {"size_bytes": 0, "size_human": "0 B", "updated_at": ""}
+    return {
+        "size_bytes": stat.st_size,
+        "size_human": human_size(stat.st_size),
+        "updated_at": format_ts(stat.st_mtime),
+    }
+
+
+def systemd_unit_inventory(scope="user", unit_type="service"):
+    """
+    Return one normalized task inventory for systemd units.
+    We merge `list-unit-files` with `list-units --all` so AQUA sees both
+    installed-but-inactive tasks and currently loaded/active tasks.
+    """
+    unit_files = list_systemd_unit_files(scope, unit_type)
+    loaded_units = list_systemd_loaded_units(scope, unit_type)
+    reverse_triggers = list_systemd_triggers(scope) if unit_type == "service" else {}
+    items = []
+    for unit_name in sorted(set(unit_files) | set(loaded_units)):
+        unit_file = unit_files.get(unit_name, {})
+        loaded = loaded_units.get(unit_name, {})
+        detail = None
+        if unit_type == "timer" or is_interesting_systemd_unit(unit_name, unit_type, loaded.get("description", "")):
+            detail = load_systemd_unit(unit_name, scope=scope) or {}
+        detail = detail or {}
+        pid = 0
+        if unit_type == "service":
+            try:
+                pid = int(detail.get("MainPID") or 0)
+            except Exception:
+                pid = 0
+        stats = process_stats(pid)
+        cmdline = read_proc_cmdline(pid) if pid else ""
+        cwd = read_proc_cwd(pid) if pid else ""
+        script = extract_script_from_cmdline(cmdline)
+        fragment_path = str(detail.get("FragmentPath") or "")
+        file_info = file_stat_summary(script if script and os.path.exists(script) else fragment_path)
+        name = unit_name.rsplit(".", 1)[0]
+        description = detail.get("Description") or loaded.get("description") or unit_name
+        load_state = detail.get("LoadState") or loaded.get("load_state") or ("loaded" if unit_file else "not-found")
+        active_state = detail.get("ActiveState") or loaded.get("active_state") or "inactive"
+        sub_state = detail.get("SubState") or loaded.get("sub_state") or ("waiting" if unit_type == "timer" and active_state == "active" else "")
+        unit_file_state = detail.get("UnitFileState") or unit_file.get("unit_file_state") or ""
+        triggers = str(detail.get("Triggers") or "").strip()
+        triggered_by = str(detail.get("TriggeredBy") or "").strip() or reverse_triggers.get(unit_name, "")
+        item = {
+            "id": f"systemd:{scope}:{unit_type}:{unit_name}",
+            "name": name,
+            "group": detect_process_group(name, f"{description} {script or fragment_path}"),
+            "section": systemd_section_label(scope, unit_type),
+            "importance": detect_importance(f"{unit_name} {description} {triggers} {triggered_by}", fallback="medium"),
+            "status": sub_state or active_state or unit_file_state or load_state or "unknown",
+            "active_state": active_state,
+            "sub_state": sub_state,
+            "load_state": load_state,
+            "unit_file_state": unit_file_state or "unknown",
+            "vendor_preset": unit_file.get("vendor_preset", ""),
+            "pid": pid,
+            "uptime": format_duration(stats.get("uptime_s")),
+            "restarts": int(detail.get("NRestarts") or 0) if str(detail.get("NRestarts") or "").isdigit() else 0,
+            "cpu": stats.get("cpu", 0.0),
+            "mem_mb": stats.get("mem_mb", 0.0),
+            "script": script or cmdline or fragment_path or unit_name,
+            "script_name": os.path.basename(script or fragment_path) if (script or fragment_path) else unit_name,
+            "script_size": file_info["size_human"],
+            "script_size_bytes": file_info["size_bytes"],
+            "script_updated_at": file_info["updated_at"],
+            "cwd": cwd,
+            "interpreter": "",
+            "exec_mode": unit_type,
+            "desc": description,
+            "steps": [],
+            "step_count": 0,
+            "line_count": 0,
+            "source": f"systemd-{scope}",
+            "source_label": systemd_source_label(scope, unit_type),
+            "unit": unit_name,
+            "manager": "systemd",
+            "unit_type": unit_type,
+            "unit_type_label": "Timer" if unit_type == "timer" else "Service",
+            "scope": scope,
+            "scope_label": "User" if scope == "user" else "System",
+            "fragment_path": fragment_path,
+            "triggers": triggers,
+            "triggered_by": triggered_by,
+            "next_run": str(detail.get("NextElapseUSecRealtime") or "").strip(),
+            "last_run": str(detail.get("LastTriggerUSec") or "").strip(),
+            "important_system": scope == "system" and unit_name in SYSTEM_SERVICE_ALLOWLIST,
+        }
+        items.append(item)
+    return items
+
+
 def user_service_to_mission(service_name):
-    data = load_systemd_service(service_name, scope="user")
+    data = load_systemd_unit(service_name, scope="user")
     if not data:
         return None
     try:
@@ -676,7 +910,7 @@ def user_service_to_mission(service_name):
 
 
 def system_service_to_mission(service_name):
-    data = load_systemd_service(service_name, scope="system")
+    data = load_systemd_unit(service_name, scope="system")
     if not data:
         return None
     try:
@@ -785,13 +1019,19 @@ def load_pm2_processes():
 
 def runtime_processes():
     """
-    Build one runtime view from both PM2 and systemd user services.
-    The current VPS moved key components to systemd user units, so relying on
-    PM2 alone hides real workloads from AQUA Manager.
+    Build one operational inventory from PM2 and systemd.
+    Unlike the earlier runtime-only view, this inventory also includes
+    installed but inactive timers/services so recurring tasks are still
+    visible before their next run.
     """
     now_ms = int(datetime.datetime.now().timestamp() * 1000)
     items = []
     seen = set()
+
+    def seen_key(item):
+        if item.get("source") == "pm2":
+            return ("pm2", item.get("id"))
+        return (item.get("source"), item.get("unit") or item.get("name"), item.get("unit_type"))
 
     for proc in load_pm2_processes():
         pm_env = proc.get("pm2_env", {})
@@ -829,8 +1069,13 @@ def runtime_processes():
             "id": f"pm2:{proc.get('pm_id')}",
             "name": name,
             "group": detect_process_group(name, script),
+            "section": detect_process_group(name, script),
             "importance": detect_importance(f"{name} {script}", fallback="medium"),
             "status": pm_env.get("status", "unknown"),
+            "active_state": pm_env.get("status", "unknown"),
+            "sub_state": pm_env.get("status", "unknown"),
+            "load_state": "loaded",
+            "unit_file_state": "",
             "pid": proc.get("pid", 0),
             "uptime": format_duration(uptime_s),
             "restarts": pm_env.get("restart_time", 0),
@@ -852,30 +1097,37 @@ def runtime_processes():
             "source_label": "PM2",
             "unit": "",
             "manager": "pm2",
+            "unit_type": "process",
+            "unit_type_label": "Process",
+            "scope": "user",
+            "scope_label": "User",
+            "fragment_path": "",
+            "triggers": "",
+            "triggered_by": "",
+            "next_run": "",
+            "last_run": "",
+            "important_system": False,
         }
         items.append(item)
-        seen.add((item["source"], item["name"]))
+        seen.add(seen_key(item))
 
-    for service_name in service_names_from_systemd(scope="user"):
-        item = user_service_to_mission(service_name)
-        if not item:
-            continue
-        key = (item["source"], item["name"])
+    for item in systemd_unit_inventory(scope="user", unit_type="service") + systemd_unit_inventory(scope="user", unit_type="timer"):
+        key = seen_key(item)
         if key in seen:
             continue
         items.append(item)
         seen.add(key)
 
-    for item in important_system_service_missions():
+    for item in systemd_unit_inventory(scope="system", unit_type="service") + systemd_unit_inventory(scope="system", unit_type="timer"):
         if not item:
             continue
-        key = (item["source"], item["name"])
+        key = seen_key(item)
         if key in seen:
             continue
         items.append(item)
         seen.add(key)
 
-    return sorted(items, key=lambda item: (item.get("group", ""), item.get("source_label", ""), item.get("name", "")))
+    return sorted(items, key=lambda item: (item.get("section", ""), item.get("unit_type", ""), item.get("name", "")))
 
 
 def file_metrics(path):

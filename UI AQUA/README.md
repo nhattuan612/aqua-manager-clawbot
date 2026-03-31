@@ -31,6 +31,9 @@ Thứ tự đọc khuyến nghị:
 12. `12-CONTENT-LANGUAGE.md`
 13. `13-ICONOGRAPHY.md`
 14. `14-DENSITY-MODES.md`
+15. `15-EXAMPLE-WIREFRAMES.md`
+16. `16-DO-AND-DONT.md`
+17. `17-TAILWIND-IMPLEMENTATION-GUIDE.md`
 
 Quy tắc quan trọng:
 - Nếu phải chọn giữa “đẹp” và “rõ để vận hành”, chọn vế thứ hai.

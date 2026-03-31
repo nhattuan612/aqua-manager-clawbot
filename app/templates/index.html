@@ -122,6 +122,8 @@ body{margin:0;background:var(--base-100);color:var(--base-content);font-family:'
 .actions{display:flex;gap:6px;flex-wrap:wrap;}
 .mini-btn{display:inline-flex;align-items:center;gap:4px;border:1px solid #334155;background:#111827;color:#e2e8f0;border-radius:5px;padding:3px 6px;font-size:10px;font-weight:700;cursor:pointer;text-decoration:none;}
 .mini-btn:hover{background:#1f2937;}
+.mini-btn.star-btn{min-width:28px;justify-content:center;padding:3px 7px;}
+.mini-btn.star-btn.active{background:color-mix(in oklch,var(--warning) 18%, var(--chip-bg) 82%);border-color:color-mix(in oklch,var(--warning) 36%, var(--line) 64%);color:#fde68a;}
 .mini-danger{border-color:#7f1d1d;color:#fecaca;background:#170b0b;}
 .mini-primary{border-color:#1d4ed8;color:#bfdbfe;background:#0f172a;}
 .section-title{font-size:11px;font-weight:700;color:#f8fafc;margin:12px 0 6px;}
@@ -1127,13 +1129,16 @@ details.group-section > summary,details.log-row > summary{
   background:var(--ref-panel-2)!important;
 }
 #missions_table .card-grid{
-  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  grid-template-columns:repeat(5,minmax(0,1fr))!important;
 }
 #missions_table .card-grid[data-count="1"]{
   grid-template-columns:1fr!important;
 }
 #missions_table .card-grid[data-count="1"] .mission-card{
   min-height:0!important;
+}
+#missions_table .mission-card.is-starred{
+  box-shadow:0 0 0 1px color-mix(in oklch,var(--warning) 34%, var(--line) 66%), 0 0 0 3px color-mix(in oklch,var(--warning) 10%, transparent 90%);
 }
 #skills_tables .card-grid-six{
   grid-template-columns:repeat(5,minmax(0,1fr))!important;
@@ -1168,9 +1173,19 @@ details.group-section > summary,details.log-row > summary{
 }
 @media (max-width:1400px){
   #missions_table .card-grid{
-    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
   }
   #skills_tables .card-grid-six{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:1500px){
+  #missions_table .card-grid{
+    grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:1280px){
+  #missions_table .card-grid{
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
   }
 }
@@ -1192,10 +1207,15 @@ details.group-section > summary,details.log-row > summary{
     grid-column:1 / -1!important;
   }
   #missions_table .card-grid{
-    grid-template-columns:1fr!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
   #skills_tables .card-grid-six{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:760px){
+  #missions_table .card-grid{
+    grid-template-columns:1fr!important;
   }
 }
 @media (max-width:900px){
@@ -1511,7 +1531,7 @@ const state = {
   confirmAction: null,
   table: {},
   ui: {
-    missions: { sort: 'importance', source: 'all', unitType: 'all', state: 'all' },
+    missions: { sort: 'importance', source: 'all', unitType: 'all', state: 'all', watch: 'all' },
     tokens: { sort: 'priority', scope: 'all' },
     reminders: { scope: 'all' },
     knowledge: { scope: 'all' },
@@ -1520,8 +1540,43 @@ const state = {
     backup: { sort: 'importance' },
   },
 };
+const MISSION_WATCH_STORAGE_KEY = 'aqua_mission_watch_v1';
 const PRIORITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, normal: 4 };
 const STATUS_ORDER = { active: 0, online: 0, ok: 0, warning: 1, pending: 2, expired: 3, unused: 4, done: 5 };
+
+function loadMissionWatchSet(){
+  try {
+    const raw = localStorage.getItem(MISSION_WATCH_STORAGE_KEY);
+    const parsed = JSON.parse(raw || '[]');
+    return new Set(Array.isArray(parsed) ? parsed : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveMissionWatchSet(){
+  try {
+    localStorage.setItem(MISSION_WATCH_STORAGE_KEY, JSON.stringify(Array.from(state.data.missionWatch || []).sort()));
+  } catch {}
+}
+
+function missionWatchKey(item){
+  return String(item.unit || item.id || `${item.source || '-'}:${item.name || '-'}`);
+}
+
+function isMissionWatched(item){
+  return Boolean(state.data.missionWatch && state.data.missionWatch.has(missionWatchKey(item)));
+}
+
+function toggleMissionWatch(encodedKey){
+  const key = decodeURIComponent(encodedKey || '');
+  if (!key) return;
+  if (!state.data.missionWatch) state.data.missionWatch = new Set();
+  if (state.data.missionWatch.has(key)) state.data.missionWatch.delete(key);
+  else state.data.missionWatch.add(key);
+  saveMissionWatchSet();
+  renderMissions();
+}
 
 function escapeHtml(value){
   return String(value ?? '')
@@ -2191,6 +2246,8 @@ function missionCard(item){
   const steps = (item.steps || []).slice(0, 3).map(step => `<span class="tag">${escapeHtml(truncateText(step, 28))}</span>`).join('');
   const isProcess = item.unit_type === 'process';
   const isTimer = item.unit_type === 'timer';
+  const watched = isMissionWatched(item);
+  const watchKey = encodeURIComponent(missionWatchKey(item));
   const topPills = isProcess ? `
       <div class="pill-row">
         <span class="kv-pill"><strong>Uptime</strong> ${escapeHtml(item.uptime || '-')}</span>
@@ -2209,13 +2266,14 @@ function missionCard(item){
   const lowerRightValue = isTimer ? (item.last_run || '-') : (item.exec_mode || '-');
   const linkBadge = item.triggered_by ? labeledBadge('Bị kích bởi', item.triggered_by) : item.triggers ? labeledBadge('Kích hoạt', item.triggers) : '';
   return `
-    <div class="dense-card mission-card ${toneClass(item.group, item.importance, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+    <div class="dense-card mission-card ${watched ? 'is-starred' : ''} ${toneClass(item.group, item.importance, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
       <div class="card-top">
         <div class="field-col">
           <div class="card-title truncate-1">${dotForStatus(item.status)} <span class="name-accent">${escapeHtml(item.name)}</span></div>
           <div class="card-sub mono truncate-1">${escapeHtml(item.script_name || '-')}</div>
         </div>
       <div class="actions">
+        <button class="mini-btn star-btn ${watched ? 'active' : ''}" type="button" onclick="event.preventDefault(); event.stopPropagation(); toggleMissionWatch('${watchKey}')" title="${watched ? 'Bỏ theo dõi' : 'Theo dõi'}">${watched ? '★' : '☆'}</button>
         ${statusBadge(item.status)}
         ${priorityBadge(item.importance)}
       </div>
@@ -2244,6 +2302,7 @@ function missionCard(item){
         ${steps}
       </div>
       <div class="actions">
+        ${watched ? badge('Theo dõi: Có', 'b-status-warning') : ''}
         <button class="mini-btn" onclick="viewJsonModal('missions', '${encodeURIComponent(item.name)}')">JSON</button>
       </div>
     </div>
@@ -2254,6 +2313,7 @@ function setMissionSort(value){ state.ui.missions.sort = value; renderMissions()
 function setMissionSource(value){ state.ui.missions.source = value; renderMissions(); }
 function setMissionUnitType(value){ state.ui.missions.unitType = value; renderMissions(); }
 function setMissionState(value){ state.ui.missions.state = value; renderMissions(); }
+function setMissionWatchFilter(value){ state.ui.missions.watch = value; renderMissions(); }
 
 function missionIsActive(item){
   const text = `${item.active_state || ''} ${item.sub_state || ''} ${item.status || ''}`.toLowerCase();
@@ -2277,11 +2337,14 @@ function renderMissions(){
   const sourceFilter = state.ui.missions.source || 'all';
   const unitTypeFilter = state.ui.missions.unitType || 'all';
   const stateFilter = state.ui.missions.state || 'all';
+  const watchFilter = state.ui.missions.watch || 'all';
   const filteredItems = allItems
     .filter(x => sourceFilter === 'all' ? true : x.source === sourceFilter)
     .filter(x => unitTypeFilter === 'all' ? true : x.unit_type === unitTypeFilter)
-    .filter(x => missionMatchesState(x, stateFilter));
+    .filter(x => missionMatchesState(x, stateFilter))
+    .filter(x => watchFilter === 'starred' ? isMissionWatched(x) : true);
   const items = sortItems(filteredItems, state.ui.missions.sort);
+  const watchedCount = allItems.filter(x => isMissionWatched(x)).length;
   const pm2Count = allItems.filter(x => x.source === 'pm2').length;
   const userServiceCount = allItems.filter(x => x.source === 'systemd-user' && x.unit_type === 'service').length;
   const userTimerCount = allItems.filter(x => x.source === 'systemd-user' && x.unit_type === 'timer').length;
@@ -2293,6 +2356,7 @@ function renderMissions(){
     'Timer': { value: items.filter(x => x.unit_type === 'timer').length, sub: 'service được lên lịch', tone: 'timer cyan' },
     'Đang chạy': { value: items.filter(x => missionIsActive(x)).length, sub: 'active / waiting / running', tone: 'cpu info' },
     'Không chạy': { value: items.filter(x => !missionIsActive(x)).length, sub: 'inactive / dead / disabled', tone: 'ram memory' },
+    'Theo dõi': { value: watchedCount, sub: watchFilter === 'starred' ? 'đang lọc mục theo dõi' : 'đánh dấu sao trong trình duyệt này', tone: 'warning amber' },
     'Restart': { value: items.reduce((sum,x) => sum + numericOrZero(x.restarts), 0), sub: 'cộng dồn ở service/process', tone: 'restart amber warning' },
   });
   document.getElementById('missions_groups').innerHTML = renderGroupStrip(items, 'section');
@@ -2326,6 +2390,10 @@ function renderMissions(){
       { value: 'disabled', label: 'Đang tắt' },
       { value: 'failed', label: 'Lỗi' },
     ], 'setMissionState'),
+    selectControl('Theo dõi', state.ui.missions.watch, [
+      { value: 'all', label: 'Tất cả' },
+      { value: 'starred', label: 'Chỉ mục theo dõi' },
+    ], 'setMissionWatchFilter'),
     '<span class="controls-spacer"></span>',
     '<button class="btn" onclick="toggleDetails(\'missions\', true)">Mở hết</button>',
     '<button class="btn" onclick="toggleDetails(\'missions\', false)">Thu gọn</button>',
@@ -3456,6 +3524,7 @@ async function restoreBackup(target){
 }
 
 function init(){
+  state.data.missionWatch = loadMissionWatchSet();
   statsPulse();
   setInterval(statsPulse, 10000);
   loadOverview(true);

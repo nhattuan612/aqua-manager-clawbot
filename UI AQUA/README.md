@@ -7,10 +7,6 @@ Mục tiêu:
 - Giúp người đọc, AI agent, và các model khác có thể dựng UI mới nhưng vẫn giữ đúng tinh thần hiện tại.
 - Làm tài liệu nguồn để mở rộng dashboard hoặc tạo hệ UI mới cùng phong cách.
 
-Nguồn sự thật hiện tại:
-- Giao diện đang chạy thật được định nghĩa chủ yếu trong:
-  - `/Users/trannhattuan/Documents/CODE/VPS/aqua-manager-clawbot/app/templates/index.html`
-
 Triết lý chính của UI AQUA:
 - Dark dashboard trước, không phải marketing page.
 - Mật độ thông tin cao nhưng vẫn đọc nhanh.

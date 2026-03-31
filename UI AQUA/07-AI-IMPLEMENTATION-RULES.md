@@ -8,9 +8,6 @@ Luôn đọc trước:
 - `UI AQUA/02-COLOR-TOKENS.md`
 - `UI AQUA/05-COMPONENTS.md`
 
-Nếu cần tham chiếu gốc:
-- `/Users/trannhattuan/Documents/CODE/VPS/aqua-manager-clawbot/app/templates/index.html`
-
 ## 7.2 Khi tạo UI mới
 AI phải giữ:
 - dark theme

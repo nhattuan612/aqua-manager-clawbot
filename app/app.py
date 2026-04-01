@@ -3,6 +3,7 @@ import datetime
 import errno
 import fcntl
 import glob
+import hashlib
 import io
 import json
 import os
@@ -367,6 +368,66 @@ def decode_jwt(token):
         return json.loads(decoded)
     except Exception:
         return {}
+
+
+def token_fingerprint(token):
+    """
+    Return a short stable fingerprint for change detection in the dashboard.
+    We never expose the raw token, only a small hash prefix that lets the UI
+    notice when OpenClaw has written a different OAuth token.
+    """
+    raw = str(token or "").strip()
+    if not raw:
+        return ""
+    try:
+        return hashlib.sha256(raw.encode("utf-8", errors="ignore")).hexdigest()[:12]
+    except Exception:
+        return ""
+
+
+def auth_profiles_mtime():
+    try:
+        return os.path.getmtime(AUTH_PROFILES)
+    except Exception:
+        return 0.0
+
+
+def openai_oauth_profile():
+    """
+    Read the live OpenAI OAuth profile from auth-profiles.json.
+    This is used after a refresh flow so AQUA can verify that OpenClaw has
+    actually persisted a new token instead of only reporting CLI success.
+    """
+    if not os.path.exists(AUTH_PROFILES):
+        return ("", {}, 0.0)
+    try:
+        data = json.loads(safe_read(AUTH_PROFILES) or "{}")
+        for key, prof in (data.get("profiles", {}) or {}).items():
+            if isinstance(prof, dict) and prof.get("provider") == "openai-codex":
+                return (str(key), prof, auth_profiles_mtime())
+    except Exception:
+        pass
+    return ("", {}, auth_profiles_mtime())
+
+
+def wait_for_openai_profile_change(previous_fp="", timeout_seconds=10.0):
+    """
+    After OpenClaw accepts the callback URL it may still need a few seconds to
+    flush auth-profiles.json. We wait briefly for a new token fingerprint so
+    the dashboard can refresh against the real persisted state.
+    """
+    deadline = time.time() + max(0.0, float(timeout_seconds or 0.0))
+    previous_fp = str(previous_fp or "").strip()
+    last_seen = {"profile_key": "", "token_fp": "", "profile_mtime": 0.0}
+    while time.time() < deadline:
+        profile_key, prof, mtime = openai_oauth_profile()
+        access_token = str(prof.get("access") or prof.get("accessToken") or "").strip()
+        current_fp = token_fingerprint(access_token)
+        last_seen = {"profile_key": profile_key, "token_fp": current_fp, "profile_mtime": mtime}
+        if current_fp and current_fp != previous_fp:
+            return {"changed": True, **last_seen}
+        time.sleep(0.6)
+    return {"changed": False, **last_seen}
 
 
 def parse_iso_datetime(value):
@@ -2085,6 +2146,7 @@ def get_tokens():
     runtime = token_runtime_snapshot()
     usage_profiles = runtime.get("usage_profiles", {})
     usage_limits = runtime.get("usage_limit", {})
+    auth_mtime = auth_profiles_mtime()
     try:
         cfg = json.loads(safe_read(os.path.join(OPENCLAW_HOME, "openclaw.json")) or "{}")
         gk = cfg.get("entries", {}).get("google", {}).get("config", {}).get("webSearch", {}).get("apiKey", "")
@@ -2114,11 +2176,25 @@ def get_tokens():
                 if prof.get("provider") != "openai-codex":
                     continue
                 token = prof.get("access", "")
+                if not token:
+                    token = prof.get("accessToken", "")
                 payload = decode_jwt(token)
                 iat = payload.get("iat")
                 exp = payload.get("exp")
                 profile_usage = usage_profiles.get(key, {}) or {}
                 provider_usage = usage_limits.get(str(prof.get("provider") or "").strip().lower(), {}) or {}
+                issued_dt = datetime.datetime.fromtimestamp(iat) if iat else None
+                detected_dt = parse_iso_datetime(provider_usage.get("detected_at")) if provider_usage else None
+                if issued_dt and detected_dt:
+                    try:
+                        if detected_dt.tzinfo is not None:
+                            issued_cmp = issued_dt.replace(tzinfo=detected_dt.tzinfo)
+                        else:
+                            issued_cmp = issued_dt
+                        if issued_cmp > detected_dt:
+                            provider_usage = {}
+                    except Exception:
+                        pass
                 total_days = round((exp - iat) / 86400, 1) if exp and iat and exp > iat else None
                 exp_date = datetime.datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M:%S") if exp else "Unknown"
                 issued_date = datetime.datetime.fromtimestamp(iat).strftime("%Y-%m-%d %H:%M:%S") if iat else None
@@ -2159,6 +2235,9 @@ def get_tokens():
                         "quota_risk": risk.get("label"),
                         "quota_risk_class": risk.get("class"),
                         "quota_usable_pct": risk.get("usable_pct"),
+                        "token_fp": token_fingerprint(token),
+                        "profile_key": key,
+                        "profile_mtime": auth_mtime,
                     }
                 )
         except Exception:
@@ -2252,8 +2331,13 @@ def oauth_openai_status():
 def oauth_openai_submit():
     payload = request.get_json(silent=True) or {}
     redirect_text = payload.get("redirect_url") or payload.get("code") or ""
+    previous_fp = payload.get("previous_fp") or ""
     try:
         result = submit_openclaw_oauth_redirect(redirect_text, "openai-codex")
+        if result.get("ok"):
+            TOKEN_RUNTIME_CACHE["ts"] = 0.0
+            TOKEN_RUNTIME_CACHE["value"] = None
+            result["token_sync"] = wait_for_openai_profile_change(previous_fp, timeout_seconds=10.0)
         status_code = 200 if result.get("ok") else 400 if result.get("state") in {"invalid", "missing"} else 200
         return jsonify(result), status_code
     except Exception as exc:

@@ -1785,10 +1785,15 @@ function emptyHtml(message){
 }
 
 function fetchJson(url, options){
-  return fetch(url, options).then(async res => {
+  const requestOptions = { cache: 'no-store', ...(options || {}) };
+  return fetch(url, requestOptions).then(async res => {
     if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`);
     return res.json();
   });
+}
+
+function sleep(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function keySummary(items){
@@ -2163,6 +2168,37 @@ async function loadOpenAIOAuthStatus(){
   }
 }
 
+function currentOpenAITokenFingerprint(){
+  const token = (state.data.tokens || []).find(item => String(item.type || '').toLowerCase() === 'oauth' && /openai/i.test(String(item.provider || '')));
+  return String(token?.token_fp || '');
+}
+
+async function refreshOpenAITokenUntilChanged(previousFp, timeoutMs=12000){
+  const deadline = Date.now() + Math.max(0, Number(timeoutMs) || 0);
+  let lastTokens = null;
+  while (Date.now() < deadline) {
+    const tokens = await fetchJson(`/api/tokens?_ts=${Date.now()}`);
+    lastTokens = tokens;
+    const current = (tokens || []).find(item => String(item.type || '').toLowerCase() === 'oauth' && /openai/i.test(String(item.provider || '')));
+    const currentFp = String(current?.token_fp || '');
+    if (currentFp && currentFp !== String(previousFp || '')) {
+      state.data.tokens = tokens;
+      state.loaded.tokens = true;
+      renderTokens();
+      return { changed: true, token: current };
+    }
+    await sleep(900);
+  }
+  if (lastTokens) {
+    state.data.tokens = lastTokens;
+    state.loaded.tokens = true;
+    renderTokens();
+  } else {
+    await loadTokens(true);
+  }
+  return { changed: false };
+}
+
 async function submitOpenAIOAuthRedirect(){
   const redirectUrl = String(document.getElementById('oauth_redirect_input')?.value || '').trim();
   if (!redirectUrl) {
@@ -2170,14 +2206,23 @@ async function submitOpenAIOAuthRedirect(){
   }
   renderOAuthRefreshModal(state.oauthRefresh || {}, 'Đang gửi callback URL vào OpenClaw để cập nhật token...');
   try {
+    const previousFp = currentOpenAITokenFingerprint();
     const result = await fetchJson('/api/oauth/openai/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ redirect_url: redirectUrl }),
+      body: JSON.stringify({ redirect_url: redirectUrl, previous_fp: previousFp }),
     });
     const flow = result.flow || state.oauthRefresh || {};
-    renderOAuthRefreshModal(flow, result.message || 'Đã cập nhật OAuth Token.');
-    await loadTokens(true);
+    renderOAuthRefreshModal(flow, result.message || 'Đã cập nhật OAuth Token. Đang nạp token mới từ OpenClaw...');
+    const refreshed = await refreshOpenAITokenUntilChanged(previousFp, 12000);
+    const sync = result.token_sync || {};
+    const changed = Boolean(refreshed.changed || sync.changed);
+    renderOAuthRefreshModal(
+      flow,
+      changed
+        ? 'OpenClaw đã ghi token mới và AQUA đã nạp lại card token.'
+        : 'OpenClaw đã nhận callback. AQUA đã reload token, nhưng fingerprint chưa đổi rõ ràng trong thời gian chờ.'
+    );
   } catch (error) {
     let detail = error.message;
     try {

@@ -1177,6 +1177,24 @@ details.group-section > summary,details.log-row > summary{
   flex-wrap:wrap;
   gap:6px;
 }
+.token-top-badges .badge{
+  min-height:28px;
+  padding:5px 10px;
+  font-size:10.5px;
+}
+.token-top-badges .badge.token-badge-hero{
+  min-height:32px;
+  padding:6px 12px;
+  font-size:11px;
+  font-weight:800;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04), 0 10px 24px rgba(15,23,42,.18);
+}
+.token-top-badges .badge.token-badge-hero.b-status-expired{
+  box-shadow:0 0 0 1px color-mix(in oklch,var(--error) 26%, transparent 74%), 0 12px 28px color-mix(in oklch,var(--error) 18%, transparent 82%);
+}
+.token-top-badges .badge.token-badge-hero.b-status-warning{
+  box-shadow:0 0 0 1px color-mix(in oklch,var(--warning) 26%, transparent 74%), 0 12px 28px color-mix(in oklch,var(--warning) 18%, transparent 82%);
+}
 .token-cta-col{
   min-width:220px;
   display:flex;
@@ -1207,17 +1225,29 @@ details.group-section > summary,details.log-row > summary{
 }
 .token-kv-grid{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:8px;
 }
 .token-kv-grid .meta-box{
   min-height:0;
+  padding:4px 6px;
 }
 .token-inline-note{
   margin-top:2px;
 }
 .token-json-actions{
   justify-content:flex-end;
+}
+.token-emphasis-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.token-emphasis-row .badge{
+  min-height:30px;
+  padding:6px 11px;
+  font-size:10.8px;
+  font-weight:800;
 }
 .iframe-wrap{
   background:#1b2435!important;
@@ -1241,6 +1271,9 @@ details.group-section > summary,details.log-row > summary{
 @media (max-width:1400px){
   #missions_table .card-grid{
     grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  }
+  .token-kv-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
   }
   #skills_tables .card-grid-six{
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
@@ -2722,7 +2755,7 @@ function tokenCard(item){
   const retryBadgeClass = hasUsageLimit ? 'b-status-warning' : 'b-status-online';
   const runtimeBadgeClass = item.usage_message ? (hasUsageLimit ? 'b-status-warning' : 'b-kind') : 'b-kind';
   const quotaUsableBadge = hasUsageLimit
-    ? badge('Quota: 0% usable', 'b-status-expired')
+    ? badge('Quota: 0% usable', 'badge token-badge-hero b-status-expired')
     : (item.quota_risk ? labeledBadge('Rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : badge('Quota: Chưa rõ', 'b-kind'));
   const oauthRefreshButton = item.type === 'oauth' && /openai/i.test(String(item.provider || ''))
     ? `<button class="btn btn-primary oauth-refresh-cta" onclick="openOAuthRefreshModal()">🔐 Làm Mới OAuth Token</button>`
@@ -2730,7 +2763,7 @@ function tokenCard(item){
   const topBadges = [
     statusBadge(item.status),
     priorityBadge(item.priority),
-    hasUsageLimit ? badge('Quota: Đang khoá', 'b-status-warning') : badge('Quota: Bình thường', 'b-status-online'),
+    hasUsageLimit ? badge('Quota: Đang khoá', 'badge token-badge-hero b-status-warning') : badge('Quota: Bình thường', 'b-status-online'),
     quotaUsableBadge,
   ];
   if (!hasUsageLimit && item.quota_risk) topBadges.push(labeledBadge('Usable quota', 'Chưa có % thật', 'b-kind'));
@@ -2753,12 +2786,9 @@ function tokenCard(item){
           <div class="field-col">
             <div class="field-label">Thông tin chính</div>
             <div class="tag-row" style="margin-top:4px;">
-              ${labeledBadge('Tài khoản', item.info || '-', 'b-kind')}
               ${labeledBadge('Còn lại', daysLeft, daysLeftBadgeClass)}
               ${labeledBadge('Chu kỳ tổng', totalDays, cycleBadgeClass)}
               ${labeledBadge('Hết hạn', item.expiry || 'Không có', expiryBadgeClass)}
-              ${labeledBadge('Có thể thử lại', item.available_at || 'Chưa bị khoá hoặc chưa xác định', retryBadgeClass)}
-              ${labeledBadge('Cooldown quota', cooldown.remainingText, retryBadgeClass)}
             </div>
           </div>
           <div class="field-col">
@@ -2773,11 +2803,14 @@ function tokenCard(item){
           </div>
           <div class="field-col">
             <div class="field-label">Trạng thái quota</div>
-            <div class="tag-row" style="margin-top:4px;">
+            <div class="token-emphasis-row" style="margin-top:4px;">
               ${labeledBadge('Giới hạn dùng ChatGPT', usageSummary, retryBadgeClass)}
               ${item.quota_risk ? labeledBadge('Mức rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : ''}
-              ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
+              ${labeledBadge('Có thể thử lại', item.available_at || 'Chưa bị khoá hoặc chưa xác định', retryBadgeClass)}
             </div>
+          </div>
+          <div class="tag-row">
+            ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
           </div>
           ${item.usage_message ? `
           <div class="field-col">

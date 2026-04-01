@@ -1257,7 +1257,7 @@ details.group-section > summary,details.log-row > summary{
 }
 .token-emphasis-row{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:6px;
   width:100%;
 }
@@ -2880,10 +2880,8 @@ function tokenCard(item){
               ${labeledBadge('Giới hạn dùng ChatGPT', usageSummary, retryBadgeClass)}
               ${item.quota_risk ? labeledBadge('Mức rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : ''}
               ${labeledBadge('Có thể thử lại', item.available_at || 'Chưa bị khoá hoặc chưa xác định', retryBadgeClass)}
+              ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
             </div>
-          </div>
-          <div class="tag-row">
-            ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
           </div>
           ${item.usage_message ? `
           <div class="field-col">

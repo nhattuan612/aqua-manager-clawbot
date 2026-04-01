@@ -21,6 +21,8 @@ PROJECT_DIR = os.path.dirname(APP_DIR)
 SKIP_WALK_DIRS = {"dashboard", "backups", "__pycache__", ".git"}
 OPENCLAW_ACCESS_CACHE_TTL = 45
 OPENCLAW_ACCESS_CACHE = {"ts": 0.0, "value": None}
+TOKEN_RUNTIME_CACHE_TTL = 45
+TOKEN_RUNTIME_CACHE = {"ts": 0.0, "value": None}
 
 
 def load_env_file(path):
@@ -274,6 +276,15 @@ def format_ts(ts):
     return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
 
 
+def format_ts_ms(ts_ms):
+    if not ts_ms:
+        return ""
+    try:
+        return datetime.datetime.fromtimestamp(float(ts_ms) / 1000.0).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return ""
+
+
 def gateway_parts():
     parsed = urlparse(GATEWAY_URL or "")
     scheme = parsed.scheme or "http"
@@ -347,6 +358,87 @@ def decode_jwt(token):
         return json.loads(decoded)
     except Exception:
         return {}
+
+
+def parse_iso_datetime(value):
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def format_dt(dt):
+    if not dt:
+        return ""
+    try:
+        if dt.tzinfo is not None:
+            dt = dt.astimezone()
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return ""
+
+
+def token_runtime_snapshot():
+    """
+    Token cooldown / quota state is not stored in OpenClaw config.
+    We derive it from recent journal lines plus auth-profiles usageStats and
+    keep a short cache so the dashboard stays responsive while still surfacing
+    near-real-time failures such as ChatGPT team-plan usage limits.
+    """
+    now = time.time()
+    if TOKEN_RUNTIME_CACHE["value"] is not None and now - TOKEN_RUNTIME_CACHE["ts"] < TOKEN_RUNTIME_CACHE_TTL:
+        return TOKEN_RUNTIME_CACHE["value"]
+
+    usage_limit = {}
+    usage_profiles = {}
+
+    if os.path.exists(AUTH_PROFILES):
+        try:
+            data = json.loads(safe_read(AUTH_PROFILES) or "{}")
+            usage_profiles = data.get("usageStats", {}) or {}
+        except Exception:
+            usage_profiles = {}
+
+    journal = run_capture(
+        ["journalctl", "--user", "-n", "400", "--no-pager", "-o", "short-iso"],
+        timeout=10,
+        extra_env=systemd_extra_env("user"),
+    )
+    limit_pattern = re.compile(r"Try again in\s*~?(\d+)\s*min", re.I)
+    provider_pattern = re.compile(r"provider=([a-z0-9._-]+)", re.I)
+    for raw_line in reversed((journal or "").splitlines()):
+        line = raw_line.strip()
+        if not line:
+            continue
+        line_lower = line.lower()
+        if "usage limit" not in line_lower and "rate limit" not in line_lower:
+            continue
+        provider_match = provider_pattern.search(line)
+        provider = provider_match.group(1).strip().lower() if provider_match else "unknown"
+        retry_match = limit_pattern.search(line)
+        retry_after_min = int(retry_match.group(1)) if retry_match else None
+        detected_at = parse_iso_datetime(line.split(" ", 1)[0])
+        available_at = None
+        if detected_at and retry_after_min is not None:
+            available_at = detected_at + datetime.timedelta(minutes=retry_after_min)
+        usage_limit[provider] = {
+            "provider_key": provider,
+            "state": "LIMITED",
+            "label": "Bị giới hạn lượt dùng",
+            "message": line.split("error=", 1)[-1].strip() if "error=" in line else line,
+            "retry_after_min": retry_after_min,
+            "detected_at": format_dt(detected_at),
+            "available_at": format_dt(available_at),
+            "is_active": bool(available_at and available_at > datetime.datetime.now(available_at.tzinfo)),
+            "source": "journalctl --user",
+        }
+    snapshot = {"usage_profiles": usage_profiles, "usage_limit": usage_limit}
+    TOKEN_RUNTIME_CACHE["ts"] = now
+    TOKEN_RUNTIME_CACHE["value"] = snapshot
+    return snapshot
 
 
 def git_remote(fp):
@@ -1701,6 +1793,9 @@ def system_stats():
 def get_tokens():
     tokens = []
     now = datetime.datetime.now().timestamp()
+    runtime = token_runtime_snapshot()
+    usage_profiles = runtime.get("usage_profiles", {})
+    usage_limits = runtime.get("usage_limit", {})
     try:
         cfg = json.loads(safe_read(os.path.join(OPENCLAW_HOME, "openclaw.json")) or "{}")
         gk = cfg.get("entries", {}).get("google", {}).get("config", {}).get("webSearch", {}).get("apiKey", "")
@@ -1733,6 +1828,8 @@ def get_tokens():
                 payload = decode_jwt(token)
                 iat = payload.get("iat")
                 exp = payload.get("exp")
+                profile_usage = usage_profiles.get(key, {}) or {}
+                provider_usage = usage_limits.get(str(prof.get("provider") or "").strip().lower(), {}) or {}
                 total_days = round((exp - iat) / 86400, 1) if exp and iat and exp > iat else None
                 exp_date = datetime.datetime.fromtimestamp(exp).strftime("%Y-%m-%d %H:%M:%S") if exp else "Unknown"
                 issued_date = datetime.datetime.fromtimestamp(iat).strftime("%Y-%m-%d %H:%M:%S") if iat else None
@@ -1740,6 +1837,10 @@ def get_tokens():
                 pct_left = round(max(0, min(100, (days_left / total_days) * 100)), 1) if total_days and total_days > 0 else None
                 status = "EXPIRED" if days_left < 0 else "WARNING" if days_left < 2 else "ACTIVE"
                 priority = "critical" if days_left < 1 else "high" if days_left < 3 else "medium"
+                usage_state = str(provider_usage.get("state") or "").upper()
+                if usage_state == "LIMITED" and provider_usage.get("is_active"):
+                    status = "LIMITED"
+                    priority = "critical"
                 tokens.append(
                     {
                         "name": "ChatGPT OAuth (OpenAI)",
@@ -1753,6 +1854,17 @@ def get_tokens():
                         "days_left": days_left,
                         "total_days": total_days,
                         "pct_left": pct_left,
+                        "email": prof.get("email"),
+                        "usage_state": usage_state or "NORMAL",
+                        "usage_label": provider_usage.get("label") or "Bình thường",
+                        "usage_message": provider_usage.get("message") or "",
+                        "retry_after_min": provider_usage.get("retry_after_min"),
+                        "limit_detected_at": provider_usage.get("detected_at") or "",
+                        "available_at": provider_usage.get("available_at") or "",
+                        "runtime_source": provider_usage.get("source") or "",
+                        "last_used_at": format_ts_ms(profile_usage.get("lastUsed")),
+                        "last_failure_at": format_ts_ms(profile_usage.get("lastFailureAt")),
+                        "error_count": int(profile_usage.get("errorCount") or 0),
                     }
                 )
         except Exception:

@@ -1656,6 +1656,7 @@ function tableShell(tableId, headers, body){
 function statusLabel(status){
   const text = String(status || '').toLowerCase();
   if (/(failed|error)/.test(text)) return 'Lỗi';
+  if (/(limited|quota|cooldown|ratelimit|rate_limit)/.test(text)) return 'Bị giới hạn';
   if (/(activating)/.test(text)) return 'Đang khởi động';
   if (/(deactivating)/.test(text)) return 'Đang dừng';
   if (/(running|online|active|ok|waiting)/.test(text)) return 'Đang chạy';
@@ -1676,6 +1677,7 @@ function statusLabel(status){
 function statusClass(status){
   const text = String(status || '').toLowerCase();
   if (/(failed|error)/.test(text)) return 'b-status-expired';
+  if (/(limited|quota|cooldown|ratelimit|rate_limit)/.test(text)) return 'b-status-warning';
   if (/(activating|deactivating|warning|pending)/.test(text)) return 'b-status-warning';
   if (/(running|online|active|ok|waiting|enabled)/.test(text)) return 'b-status-online';
   if (/(loaded|static)/.test(text)) return 'b-kind';
@@ -2061,7 +2063,7 @@ function systemServiceCard(item){
 function buildOverviewAlerts(system, missions, remindersData, tokens, backups){
   const alerts = [];
   const overdue = (remindersData.reminders || []).filter(item => reminderUrgency(item) === 'critical');
-  const warnTokens = tokens.filter(item => ['warning','expired'].includes(String(item.status || '').toLowerCase()));
+  const warnTokens = tokens.filter(item => ['warning','expired','limited'].includes(String(item.status || '').toLowerCase()) || /limited/i.test(String(item.usage_state || '')));
   const hotMissions = missions.filter(item => numericOrZero(item.restarts) >= 3 || numericOrZero(item.mem_mb) >= 150 || numericOrZero(item.cpu) >= 30);
   const staleBackups = backups.filter(item => !item.last_updated);
 
@@ -2093,7 +2095,7 @@ function buildOverviewAlerts(system, missions, remindersData, tokens, backups){
     group: 'Khoá/API',
     level: warnTokens.length ? 'high' : 'low',
     levelLabel: warnTokens.length ? 'Cao' : 'Thấp',
-    summary: `${warnTokens.length} token đang warning hoặc expired.`,
+    summary: `${warnTokens.length} token đang cảnh báo, hết hạn hoặc bị giới hạn lượt dùng.`,
     detail: warnTokens.length ? warnTokens.map(item => `${item.name}: ${statusLabel(item.status)}`).join(' | ') : 'Các token hiện chưa có cảnh báo.',
     tab: 'tokens',
   });
@@ -2171,7 +2173,7 @@ function renderOverview(data){
     'Uptime': { value: `${system.uptime || '-'}`, sub: 'thời gian hoạt động VPS', tone: 'uptime system indigo' },
     'Tác vụ quét được': { value: missions.length, sub: `${pm2Count} PM2 · ${userServiceCount} service user · ${userTimerCount} timer user · ${systemServiceCount} service system · ${systemTimerCount} timer system`, tone: 'mission process violet' },
     'Reminder quá hạn': { value: (remindersData.reminders || []).filter(item => reminderUrgency(item) === 'critical').length, sub: 'cần xử lý ngay', tone: 'reminder overdue rose' },
-    'Token cảnh báo': { value: tokens.filter(item => ['warning','expired'].includes(String(item.status || '').toLowerCase())).length, sub: 'warning / expired', tone: 'token warning amber' },
+    'Token cảnh báo': { value: tokens.filter(item => ['warning','expired','limited'].includes(String(item.status || '').toLowerCase()) || /limited/i.test(String(item.usage_state || ''))).length, sub: 'warning / expired / quota', tone: 'token warning amber' },
     'Backup': { value: backups.length, sub: 'mục backup khả dụng', tone: 'backup lime' },
   });
   document.getElementById('overview_groups').innerHTML = [
@@ -2427,6 +2429,10 @@ function normalizeProviderName(value){
 function tokenCard(item){
   const daysLeft = item.days_left == null ? 'Không giới hạn' : `${item.days_left} ngày`;
   const totalDays = item.total_days == null ? 'Không rõ tổng hạn' : `${item.total_days} ngày`;
+  const hasUsageLimit = /limited/i.test(String(item.usage_state || ''));
+  const usageSummary = hasUsageLimit
+    ? (item.retry_after_min != null ? `Thử lại sau khoảng ${item.retry_after_min} phút` : (item.usage_label || 'Đang bị giới hạn'))
+    : (item.error_count ? `Có ${item.error_count} lỗi gần đây` : 'Chưa thấy giới hạn lượt dùng');
   return `
     <div class="dense-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
       <div class="card-top">
@@ -2437,6 +2443,7 @@ function tokenCard(item){
         <div class="actions">
           ${statusBadge(item.status)}
           ${priorityBadge(item.priority)}
+          ${hasUsageLimit ? badge('Quota: Đang khoá', 'b-status-warning') : badge('Quota: Bình thường', 'b-status-online')}
         </div>
       </div>
       <div class="field-row">
@@ -2452,10 +2459,27 @@ function tokenCard(item){
         ${meter(item.pct_left, item.status)}
         <div class="field-value tiny">${item.pct_left == null ? 'Token này không có dữ liệu thời hạn đầy đủ.' : `${item.pct_left}% thời gian còn lại`}</div>
       </div>
+      <div class="field-col">
+        <div class="field-label">Giới hạn dùng ChatGPT</div>
+        <div class="field-value">${escapeHtml(usageSummary)}</div>
+      </div>
       <div class="field-row">
         <div class="field-col"><div class="field-label">Cấp</div><div class="field-value">${escapeHtml(item.provider || '-')}</div></div>
         <div class="field-col"><div class="field-label">Khởi tạo</div><div class="field-value truncate-1">${escapeHtml(item.issued_at || 'Không rõ')}</div></div>
       </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Lần dùng gần nhất</div><div class="field-value truncate-1">${escapeHtml(item.last_used_at || 'Không rõ')}</div></div>
+        <div class="field-col"><div class="field-label">Lần lỗi gần nhất</div><div class="field-value truncate-1">${escapeHtml(item.last_failure_at || 'Không rõ')}</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field-col"><div class="field-label">Có thể thử lại</div><div class="field-value truncate-1">${escapeHtml(item.available_at || 'Chưa bị khoá hoặc chưa xác định')}</div></div>
+        <div class="field-col"><div class="field-label">Nguồn phát hiện</div><div class="field-value truncate-1">${escapeHtml(item.runtime_source || 'auth-profiles')}</div></div>
+      </div>
+      ${item.usage_message ? `
+      <div class="field-col">
+        <div class="field-label">Thông báo runtime</div>
+        <div class="field-value truncate-2">${escapeHtml(item.usage_message)}</div>
+      </div>` : ''}
       <div class="actions">
         <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
       </div>
@@ -2502,6 +2526,7 @@ function renderTokens(){
   document.getElementById('tokens_summary').innerHTML = keySummary({
     'Đang dùng': { value: actual.length, sub: 'token / credential', tone: 'token success' },
     'Chưa xài': { value: unused.length, sub: 'API dự kiến chưa cấu hình', tone: 'token unused slate' },
+    'Bị giới hạn': { value: actual.filter(x => /limited/i.test(String(x.usage_state || x.status || ''))).length, sub: 'đang cooldown / quota', tone: 'warning amber token' },
     'Cảnh báo': { value: actual.filter(x => String(x.status).toLowerCase() === 'warning').length, sub: 'sắp hết hạn', tone: 'warning amber token' },
     'Hết hạn': { value: actual.filter(x => String(x.status).toLowerCase() === 'expired').length, sub: 'cần làm mới', tone: 'expired rose token' },
     'Có hạn': { value: actual.filter(x => x.days_left != null).length, sub: 'có đếm ngược', tone: 'info indigo token' },

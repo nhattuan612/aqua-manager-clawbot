@@ -1528,6 +1528,7 @@ const state = {
   searchQuery: '',
   loaded: {},
   data: {},
+  oauthRefresh: null,
   confirmAction: null,
   table: {},
   ui: {
@@ -1869,6 +1870,150 @@ function openModal(title, html){
 function closeModal(){
   document.getElementById('modal-overlay').classList.remove('open');
   document.getElementById('modal-body').innerHTML = '';
+}
+
+async function copyText(text){
+  const value = String(text || '').trim();
+  if (!value) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+  } catch {}
+  const el = document.createElement('textarea');
+  el.value = value;
+  document.body.appendChild(el);
+  el.select();
+  try { document.execCommand('copy'); } catch {}
+  document.body.removeChild(el);
+}
+
+function uiErrorText(raw, fallback){
+  const text = String(raw || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text) return fallback;
+  if (/404|not found/i.test(text)) return 'OAuth helper trên server chưa sẵn sàng hoặc dashboard chưa được restart với route mới.';
+  if (/500|internal server error/i.test(text)) return 'OAuth helper trên server gặp lỗi nội bộ. Hãy kiểm tra backend AQUA.';
+  return text;
+}
+
+function oauthFlowBadge(flow){
+  const stateText = String(flow?.state || '').toLowerCase();
+  if (stateText === 'completed') return badge('Trạng thái: Đã cập nhật', 'b-status-online');
+  if (stateText === 'failed') return badge('Trạng thái: Cập nhật lỗi', 'b-status-expired');
+  if (stateText === 'waiting_callback') return badge('Trạng thái: Đang chờ callback', 'b-status-warning');
+  if (stateText === 'starting') return badge('Trạng thái: Đang tạo link', 'b-priority-medium');
+  return badge('Trạng thái: Chưa bắt đầu', 'b-kind');
+}
+
+function oauthModalMarkup(flow, notice=''){
+  const currentInput = document.getElementById('oauth_redirect_input')?.value || '';
+  const output = truncateText(String(flow?.output || ''), 4000);
+  const statusText = String(notice || flow?.status_text || flow?.message || '').trim();
+  return `
+    <div class="card-grid-tight">
+      <div class="cmd-box tone-indigo">
+        <div class="card-title">1. Link đăng nhập mới</div>
+        <div class="card-sub">Bấm nút tạo link mới, sau đó mở link này trên trình duyệt local của anh để đăng nhập ChatGPT OAuth.</div>
+        <div class="tag-row" style="margin-top:8px;">
+          ${oauthFlowBadge(flow)}
+          ${flow?.login_url ? badge('Link mới: Sẵn sàng', 'b-status-online') : badge('Link mới: Chưa có', 'b-kind')}
+        </div>
+        <textarea id="oauth_login_url" class="restore-input" readonly style="min-height:96px;margin-top:8px;font-family:'JetBrains Mono',monospace;">${escapeHtml(flow?.login_url || '')}</textarea>
+        <div class="action-row" style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="startOpenAIOAuthFlow(true)">🔄 Tạo Link Mới</button>
+          <button class="btn" onclick="copyOAuthLoginUrl()">📋 Copy link</button>
+          ${flow?.login_url ? `<a class="btn" href="${escapeHtml(flow.login_url)}" target="_blank" rel="noopener noreferrer">🌐 Mở link</a>` : ''}
+        </div>
+      </div>
+      <div class="cmd-box tone-cyan">
+        <div class="card-title">2. Dán localhost callback URL rồi cập nhật</div>
+        <div class="card-sub">Sau khi đăng nhập xong, ChatGPT sẽ trả về một link dạng <code>http://localhost:...</code>. Copy nguyên link đó và dán vào ô bên dưới.</div>
+        <textarea id="oauth_redirect_input" class="restore-input" placeholder="http://localhost:1455/auth/callback?code=...&state=..." style="min-height:120px;margin-top:8px;font-family:'JetBrains Mono',monospace;">${escapeHtml(currentInput)}</textarea>
+        <div class="action-row" style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="submitOpenAIOAuthRedirect()">✅ Cập Nhật</button>
+          <button class="btn" onclick="loadOpenAIOAuthStatus()">🔎 Kiểm Tra Trạng Thái</button>
+        </div>
+      </div>
+    </div>
+    <div class="cmd-box tone-slate" style="margin-top:10px;">
+      <div class="card-title">Hướng dẫn ngắn</div>
+      <div class="tag-row" style="margin-top:8px;">
+        ${badge('B1: Tạo link mới', 'b-priority-medium')}
+        ${badge('B2: Đăng nhập ở browser local', 'b-kind')}
+        ${badge('B3: Copy localhost callback URL', 'b-kind')}
+        ${badge('B4: Dán vào ô thứ 2 và bấm Cập Nhật', 'b-status-online')}
+      </div>
+      ${statusText ? `<div class="field-value" style="margin-top:10px;">${escapeHtml(statusText)}</div>` : ''}
+    </div>
+    <div class="code-box" style="margin-top:10px;">
+      <pre>${escapeHtml(output || 'Chưa có output từ OpenClaw.')}</pre>
+    </div>
+  `;
+}
+
+function renderOAuthRefreshModal(flow, notice=''){
+  state.oauthRefresh = flow || null;
+  document.getElementById('modal-title').textContent = 'Làm Mới OAuth Token';
+  document.getElementById('modal-body').innerHTML = oauthModalMarkup(flow || {}, notice);
+}
+
+async function openOAuthRefreshModal(){
+  openModal('Làm Mới OAuth Token', oauthModalMarkup({}, 'Đang tạo phiên OAuth mới từ OpenClaw...'));
+  await startOpenAIOAuthFlow(true);
+}
+
+function copyOAuthLoginUrl(){
+  const loginUrl = state.oauthRefresh?.login_url || document.getElementById('oauth_login_url')?.value || '';
+  copyText(loginUrl);
+}
+
+async function startOpenAIOAuthFlow(refresh=true){
+  renderOAuthRefreshModal(state.oauthRefresh || {}, 'Đang yêu cầu OpenClaw tạo link đăng nhập mới...');
+  try {
+    const flow = await fetchJson(`/api/oauth/openai/start${refresh ? '?refresh=1' : ''}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh }),
+    });
+    renderOAuthRefreshModal(flow, flow.status_text || 'Đã tạo link OAuth mới.');
+  } catch (error) {
+    renderOAuthRefreshModal(state.oauthRefresh || {}, `Lỗi tạo link OAuth: ${uiErrorText(error.message, 'Không tạo được link OAuth mới.')}`);
+  }
+}
+
+async function loadOpenAIOAuthStatus(){
+  try {
+    const flow = await fetchJson('/api/oauth/openai/status');
+    renderOAuthRefreshModal(flow, flow.status_text || 'Đã cập nhật trạng thái OAuth.');
+  } catch (error) {
+    renderOAuthRefreshModal(state.oauthRefresh || {}, `Lỗi đọc trạng thái OAuth: ${uiErrorText(error.message, 'Không đọc được trạng thái OAuth.')}`);
+  }
+}
+
+async function submitOpenAIOAuthRedirect(){
+  const redirectUrl = String(document.getElementById('oauth_redirect_input')?.value || '').trim();
+  if (!redirectUrl) {
+    return renderOAuthRefreshModal(state.oauthRefresh || {}, 'Thiếu localhost callback URL để cập nhật token.');
+  }
+  renderOAuthRefreshModal(state.oauthRefresh || {}, 'Đang gửi callback URL vào OpenClaw để cập nhật token...');
+  try {
+    const result = await fetchJson('/api/oauth/openai/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ redirect_url: redirectUrl }),
+    });
+    const flow = result.flow || state.oauthRefresh || {};
+    renderOAuthRefreshModal(flow, result.message || 'Đã cập nhật OAuth Token.');
+    await loadTokens(true);
+  } catch (error) {
+    let detail = error.message;
+    try {
+      const parsed = JSON.parse(error.message);
+      detail = parsed.message || error.message;
+    } catch {}
+    renderOAuthRefreshModal(state.oauthRefresh || {}, `Lỗi cập nhật OAuth Token: ${uiErrorText(detail, 'Không cập nhật được OAuth Token.')}`);
+  }
 }
 
 function askConfirm(title, message, fn){
@@ -2494,6 +2639,9 @@ function tokenCard(item){
   const quotaUsableBadge = hasUsageLimit
     ? badge('Quota: 0% usable', 'b-status-expired')
     : (item.quota_risk ? labeledBadge('Rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : badge('Quota: Chưa rõ', 'b-kind'));
+  const oauthRefreshButton = item.type === 'oauth' && /openai/i.test(String(item.provider || ''))
+    ? `<button class="mini-btn mini-primary" onclick="openOAuthRefreshModal()">🔐 Làm Mới OAuth Token</button>`
+    : '';
   return `
     <div class="dense-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
       <div class="card-top">
@@ -2502,6 +2650,7 @@ function tokenCard(item){
           <div class="card-sub truncate-1">${escapeHtml(item.provider || '-') } · ${escapeHtml(item.type || '-')}</div>
         </div>
         <div class="actions">
+          ${oauthRefreshButton}
           ${statusBadge(item.status)}
           ${priorityBadge(item.priority)}
           ${hasUsageLimit ? badge('Quota: Đang khoá', 'b-status-warning') : badge('Quota: Bình thường', 'b-status-online')}

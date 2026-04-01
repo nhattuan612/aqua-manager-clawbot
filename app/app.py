@@ -1,14 +1,20 @@
 import base64
 import datetime
+import errno
+import fcntl
 import glob
 import io
 import json
 import os
+import pty
 import re
+import select
 import shlex
 import shutil
 import subprocess
+import threading
 import time
+import uuid
 import zipfile
 from urllib.parse import urlparse
 
@@ -23,6 +29,9 @@ OPENCLAW_ACCESS_CACHE_TTL = 45
 OPENCLAW_ACCESS_CACHE = {"ts": 0.0, "value": None}
 TOKEN_RUNTIME_CACHE_TTL = 45
 TOKEN_RUNTIME_CACHE = {"ts": 0.0, "value": None}
+OAUTH_FLOW_TTL = 900
+OAUTH_FLOW_LOCK = threading.Lock()
+OAUTH_FLOWS = {}
 
 
 def load_env_file(path):
@@ -465,6 +474,260 @@ def quota_risk_profile(status, usage_state, error_count, last_failure_at):
     if int(error_count or 0) >= 1:
         return {"label": "Căng", "class": "medium", "usable_pct": None}
     return {"label": "An toàn", "class": "low", "usable_pct": None}
+
+
+def strip_ansi(text):
+    ansi_re = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    cleaned = ansi_re.sub("", str(text or ""))
+    cleaned = cleaned.replace("\r", "").replace("\x00", "")
+    return cleaned
+
+
+def compact_output(text, max_chars=16000):
+    cleaned = strip_ansi(text)
+    lines = []
+    for raw_line in cleaned.splitlines():
+        line = raw_line.strip()
+        normalized = re.sub(r"[│╭╮╯╰├┤┬┴┼─═◇◆]", "", line).strip()
+        if not normalized:
+            continue
+        if len(normalized) <= 1 and "http" not in normalized.lower():
+            continue
+        lines.append(normalized)
+    cleaned = "\n".join(lines)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    return cleaned[-max_chars:]
+
+
+def oauth_url_from_output(text):
+    for match in re.finditer(r"https?://[^\s<>'\"]+", str(text or "")):
+        candidate = match.group(0).strip()
+        if "auth.openai.com" in candidate or "oauth/authorize" in candidate:
+            return candidate
+    return ""
+
+
+def set_nonblocking(fd):
+    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+
+def oauth_flow_payload(flow):
+    if not flow:
+        return {
+            "ok": False,
+            "provider": "openai-codex",
+            "state": "idle",
+            "login_url": "",
+            "started_at": "",
+            "finished_at": "",
+            "status_text": "Chưa khởi tạo phiên làm mới OAuth.",
+            "output": "",
+        }
+    return {
+        "ok": bool(flow.get("login_url")),
+        "provider": flow.get("provider", "openai-codex"),
+        "state": flow.get("state", "idle"),
+        "login_url": flow.get("login_url", ""),
+        "started_at": flow.get("started_at", ""),
+        "finished_at": flow.get("finished_at", ""),
+        "status_text": flow.get("status_text", ""),
+        "output": flow.get("output", ""),
+        "prompt_ready": bool(flow.get("prompt_ready")),
+        "done": bool(flow.get("done")),
+    }
+
+
+def terminate_oauth_flow(flow):
+    if not flow:
+        return
+    proc = flow.get("proc")
+    master_fd = flow.get("master_fd")
+    try:
+        if proc and proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except Exception:
+                proc.kill()
+    except Exception:
+        pass
+    try:
+        if master_fd is not None:
+            os.close(master_fd)
+    except Exception:
+        pass
+
+
+def poll_oauth_flow(flow, wait_seconds=0.0):
+    if not flow:
+        return None
+    master_fd = flow.get("master_fd")
+    proc = flow.get("proc")
+    deadline = time.time() + max(0.0, float(wait_seconds or 0.0))
+    chunks = []
+    while master_fd is not None:
+        timeout = max(0.0, deadline - time.time()) if wait_seconds else 0.0
+        try:
+            ready, _, _ = select.select([master_fd], [], [], timeout)
+        except Exception:
+            break
+        if not ready:
+            break
+        try:
+            data = os.read(master_fd, 65536)
+        except OSError as exc:
+            if exc.errno in {errno.EIO, errno.EBADF}:
+                break
+            raise
+        if not data:
+            break
+        chunks.append(data.decode("utf-8", errors="replace"))
+        if wait_seconds and time.time() >= deadline:
+            break
+    if chunks:
+        flow["output"] = compact_output((flow.get("output") or "") + "".join(chunks))
+        if not flow.get("login_url"):
+            flow["login_url"] = oauth_url_from_output(flow["output"])
+        flow["prompt_ready"] = "Paste the authorization code" in flow.get("output", "")
+        flow["updated_at_ts"] = time.time()
+    if proc and proc.poll() is not None and not flow.get("done"):
+        flow["done"] = True
+        flow["exit_code"] = proc.returncode
+        flow["finished_at"] = format_dt(datetime.datetime.now())
+        if proc.returncode == 0:
+            flow["state"] = "completed"
+            flow["status_text"] = "OpenClaw đã nhận OAuth Token mới thành công."
+        else:
+            flow["state"] = "failed"
+            flow["status_text"] = "OpenClaw không cập nhật được OAuth Token. Kiểm tra output bên dưới."
+        terminate_oauth_flow(flow)
+        flow["master_fd"] = None
+        flow["proc"] = None
+    elif not flow.get("done"):
+        if flow.get("login_url"):
+            flow["prompt_ready"] = True
+            flow["state"] = "waiting_callback"
+            flow["status_text"] = "Đã có link đăng nhập mới. Sau khi đăng nhập, dán lại localhost callback URL để cập nhật token."
+        else:
+            flow["state"] = "starting"
+            flow["status_text"] = "Đang yêu cầu OpenClaw tạo link đăng nhập mới..."
+    return flow
+
+
+def prune_oauth_flows():
+    now = time.time()
+    stale = []
+    for provider, flow in list(OAUTH_FLOWS.items()):
+        poll_oauth_flow(flow, 0.0)
+        updated_at = float(flow.get("updated_at_ts") or flow.get("created_at_ts") or 0.0)
+        if flow.get("done") and now - updated_at > 120:
+            stale.append(provider)
+        elif not flow.get("done") and now - updated_at > OAUTH_FLOW_TTL:
+            stale.append(provider)
+    for provider in stale:
+        terminate_oauth_flow(OAUTH_FLOWS.get(provider))
+        OAUTH_FLOWS.pop(provider, None)
+
+
+def start_openclaw_oauth_flow(provider="openai-codex", force=False):
+    with OAUTH_FLOW_LOCK:
+        prune_oauth_flows()
+        current = OAUTH_FLOWS.get(provider)
+        if current:
+            poll_oauth_flow(current, 0.0)
+            if not force and not current.get("done"):
+                return oauth_flow_payload(current)
+            terminate_oauth_flow(current)
+            OAUTH_FLOWS.pop(provider, None)
+
+        master_fd, slave_fd = pty.openpty()
+        set_nonblocking(master_fd)
+        env_map = os.environ.copy()
+        env_map.update(systemd_extra_env("user"))
+        proc = subprocess.Popen(
+            [OPENCLAW_BIN, "models", "auth", "login", "--provider", provider],
+            stdin=slave_fd,
+            stdout=slave_fd,
+            stderr=slave_fd,
+            cwd=os.path.expanduser("~"),
+            env=env_map,
+            close_fds=True,
+        )
+        os.close(slave_fd)
+        flow = {
+            "id": uuid.uuid4().hex,
+            "provider": provider,
+            "proc": proc,
+            "master_fd": master_fd,
+            "created_at_ts": time.time(),
+            "updated_at_ts": time.time(),
+            "started_at": format_dt(datetime.datetime.now()),
+            "finished_at": "",
+            "output": "",
+            "login_url": "",
+            "prompt_ready": False,
+            "done": False,
+            "state": "starting",
+            "status_text": "Đang khởi tạo phiên OAuth mới...",
+        }
+        OAUTH_FLOWS[provider] = flow
+
+    deadline = time.time() + 12.0
+    while time.time() < deadline:
+        with OAUTH_FLOW_LOCK:
+            current = OAUTH_FLOWS.get(provider)
+            if not current:
+                break
+            poll_oauth_flow(current, 0.6)
+            if current.get("login_url") or current.get("done"):
+                return oauth_flow_payload(current)
+    with OAUTH_FLOW_LOCK:
+        return oauth_flow_payload(OAUTH_FLOWS.get(provider))
+
+
+def submit_openclaw_oauth_redirect(redirect_text, provider="openai-codex"):
+    payload = str(redirect_text or "").strip()
+    if not payload:
+        return {"ok": False, "state": "invalid", "message": "Chưa có callback URL để cập nhật token."}
+    with OAUTH_FLOW_LOCK:
+        prune_oauth_flows()
+        flow = OAUTH_FLOWS.get(provider)
+        if not flow or flow.get("done"):
+            return {"ok": False, "state": "missing", "message": "Không còn phiên OAuth đang chờ callback. Hãy tạo link đăng nhập mới."}
+        poll_oauth_flow(flow, 0.0)
+        if flow.get("master_fd") is None:
+            return {"ok": False, "state": "missing", "message": "Phiên OAuth không còn mở. Hãy tạo link đăng nhập mới."}
+        os.write(flow["master_fd"], (payload + "\n").encode("utf-8", errors="ignore"))
+        flow["updated_at_ts"] = time.time()
+        flow["status_text"] = "Đã gửi callback URL vào OpenClaw. Đang chờ OpenClaw cập nhật token..."
+
+    deadline = time.time() + 20.0
+    while time.time() < deadline:
+        with OAUTH_FLOW_LOCK:
+            flow = OAUTH_FLOWS.get(provider)
+            if not flow:
+                break
+            poll_oauth_flow(flow, 0.5)
+            if flow.get("done"):
+                result = oauth_flow_payload(flow)
+                if flow.get("state") == "completed":
+                    OAUTH_FLOWS.pop(provider, None)
+                    return {"ok": True, "state": "completed", "message": result.get("status_text"), "flow": result}
+                return {"ok": False, "state": flow.get("state"), "message": result.get("status_text"), "flow": result}
+            if flow.get("prompt_ready") and "Paste the authorization code" in flow.get("output", "") and payload not in flow.get("output", ""):
+                break
+    with OAUTH_FLOW_LOCK:
+        flow = OAUTH_FLOWS.get(provider)
+        if not flow:
+            return {"ok": False, "state": "missing", "message": "Phiên OAuth không còn tồn tại."}
+        poll_oauth_flow(flow, 0.0)
+        return {
+            "ok": False,
+            "state": flow.get("state"),
+            "message": "OpenClaw vẫn đang chờ callback hợp lệ hoặc đang xử lý. Kiểm tra output trong popup.",
+            "flow": oauth_flow_payload(flow),
+        }
 
 
 def git_remote(fp):
@@ -1959,6 +2222,42 @@ def openclaw_access():
         OPENCLAW_ACCESS_CACHE["ts"] = 0.0
         OPENCLAW_ACCESS_CACHE["value"] = None
     return jsonify(get_openclaw_access_info())
+
+
+@app.route("/api/oauth/openai/start", methods=["POST"])
+@login_required
+def oauth_openai_start():
+    payload = request.get_json(silent=True) or {}
+    force = str(request.args.get("refresh", payload.get("refresh", ""))).lower() in {"1", "true", "yes"}
+    try:
+        flow = start_openclaw_oauth_flow("openai-codex", force=force)
+        return jsonify(flow)
+    except Exception as exc:
+        return jsonify({"ok": False, "state": "error", "message": str(exc)}), 500
+
+
+@app.route("/api/oauth/openai/status")
+@login_required
+def oauth_openai_status():
+    with OAUTH_FLOW_LOCK:
+        prune_oauth_flows()
+        flow = OAUTH_FLOWS.get("openai-codex")
+        if flow:
+            poll_oauth_flow(flow, 0.0)
+        return jsonify(oauth_flow_payload(flow))
+
+
+@app.route("/api/oauth/openai/submit", methods=["POST"])
+@login_required
+def oauth_openai_submit():
+    payload = request.get_json(silent=True) or {}
+    redirect_text = payload.get("redirect_url") or payload.get("code") or ""
+    try:
+        result = submit_openclaw_oauth_redirect(redirect_text, "openai-codex")
+        status_code = 200 if result.get("ok") else 400 if result.get("state") in {"invalid", "missing"} else 200
+        return jsonify(result), status_code
+    except Exception as exc:
+        return jsonify({"ok": False, "state": "error", "message": str(exc)}), 500
 
 
 @app.route("/api/missions")

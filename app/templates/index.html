@@ -1701,6 +1701,8 @@ const state = {
   loaded: {},
   data: {},
   oauthRefresh: null,
+  oauthNotice: '',
+  oauthUi: { busy: false, action: '' },
   confirmAction: null,
   table: {},
   ui: {
@@ -2074,6 +2076,19 @@ function uiErrorText(raw, fallback){
   return text;
 }
 
+function formatUnixSeconds(ts){
+  const num = Number(ts);
+  if (!Number.isFinite(num) || num <= 0) return '';
+  const d = new Date(num * 1000);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function setOAuthBusy(action='', busy=false){
+  state.oauthUi = { action: busy ? String(action || '') : '', busy: Boolean(busy) };
+}
+
 function oauthFlowBadge(flow){
   const stateText = String(flow?.state || '').toLowerCase();
   if (stateText === 'completed') return badge('Trạng thái: Đã cập nhật', 'b-status-online');
@@ -2086,7 +2101,13 @@ function oauthFlowBadge(flow){
 function oauthModalMarkup(flow, notice=''){
   const currentInput = document.getElementById('oauth_redirect_input')?.value || '';
   const output = truncateText(String(flow?.output || ''), 4000);
-  const statusText = String(notice || flow?.status_text || flow?.message || '').trim();
+  const statusText = String(notice || state.oauthNotice || flow?.status_text || flow?.message || '').trim();
+  const busy = Boolean(state.oauthUi?.busy);
+  const action = String(state.oauthUi?.action || '');
+  const createLabel = busy && action === 'start' ? '⏳ Đang tạo link...' : '🔄 Tạo Link Mới';
+  const submitLabel = busy && action === 'submit' ? '⏳ Đang cập nhật...' : '✅ Cập Nhật';
+  const checkLabel = busy && action === 'status' ? '⏳ Đang kiểm tra...' : '🔎 Kiểm Tra Trạng Thái';
+  const disabledAttr = busy ? 'disabled' : '';
   return `
     <div class="card-grid-tight">
       <div class="cmd-box tone-indigo">
@@ -2094,12 +2115,13 @@ function oauthModalMarkup(flow, notice=''){
         <div class="card-sub">Bấm nút tạo link mới, sau đó mở link này trên trình duyệt local của anh để đăng nhập ChatGPT OAuth.</div>
         <div class="tag-row" style="margin-top:8px;">
           ${oauthFlowBadge(flow)}
+          ${busy ? badge(`Đang xử lý: ${action || 'oauth'}`, 'b-priority-medium') : ''}
           ${flow?.login_url ? badge('Link mới: Sẵn sàng', 'b-status-online') : badge('Link mới: Chưa có', 'b-kind')}
         </div>
         <textarea id="oauth_login_url" class="restore-input" readonly style="min-height:96px;margin-top:8px;font-family:'JetBrains Mono',monospace;">${escapeHtml(flow?.login_url || '')}</textarea>
         <div class="action-row" style="margin-top:8px;">
-          <button class="btn btn-primary" onclick="startOpenAIOAuthFlow(true)">🔄 Tạo Link Mới</button>
-          <button class="btn" onclick="copyOAuthLoginUrl()">📋 Copy link</button>
+          <button class="btn btn-primary" onclick="startOpenAIOAuthFlow(true)" ${disabledAttr}>${createLabel}</button>
+          <button class="btn" onclick="copyOAuthLoginUrl()" ${disabledAttr}>📋 Copy link</button>
           ${flow?.login_url ? `<a class="btn" href="${escapeHtml(flow.login_url)}" target="_blank" rel="noopener noreferrer">🌐 Mở link</a>` : ''}
         </div>
       </div>
@@ -2108,8 +2130,8 @@ function oauthModalMarkup(flow, notice=''){
         <div class="card-sub">Sau khi đăng nhập xong, ChatGPT sẽ trả về một link dạng <code>http://localhost:...</code>. Copy nguyên link đó và dán vào ô bên dưới.</div>
         <textarea id="oauth_redirect_input" class="restore-input" placeholder="http://localhost:1455/auth/callback?code=...&state=..." style="min-height:120px;margin-top:8px;font-family:'JetBrains Mono',monospace;">${escapeHtml(currentInput)}</textarea>
         <div class="action-row" style="margin-top:8px;">
-          <button class="btn btn-primary" onclick="submitOpenAIOAuthRedirect()">✅ Cập Nhật</button>
-          <button class="btn" onclick="loadOpenAIOAuthStatus()">🔎 Kiểm Tra Trạng Thái</button>
+          <button class="btn btn-primary" onclick="submitOpenAIOAuthRedirect()" ${disabledAttr}>${submitLabel}</button>
+          <button class="btn" onclick="loadOpenAIOAuthStatus()" ${disabledAttr}>${checkLabel}</button>
         </div>
       </div>
     </div>
@@ -2131,11 +2153,14 @@ function oauthModalMarkup(flow, notice=''){
 
 function renderOAuthRefreshModal(flow, notice=''){
   state.oauthRefresh = flow || null;
+  if (notice) state.oauthNotice = String(notice || '');
   document.getElementById('modal-title').textContent = 'Làm Mới OAuth Token';
   document.getElementById('modal-body').innerHTML = oauthModalMarkup(flow || {}, notice);
 }
 
 async function openOAuthRefreshModal(){
+  setOAuthBusy('', false);
+  state.oauthNotice = 'Đang tạo phiên OAuth mới từ OpenClaw...';
   openModal('Làm Mới OAuth Token', oauthModalMarkup({}, 'Đang tạo phiên OAuth mới từ OpenClaw...'));
   await startOpenAIOAuthFlow(true);
 }
@@ -2146,6 +2171,7 @@ function copyOAuthLoginUrl(){
 }
 
 async function startOpenAIOAuthFlow(refresh=true){
+  setOAuthBusy('start', true);
   renderOAuthRefreshModal(state.oauthRefresh || {}, 'Đang yêu cầu OpenClaw tạo link đăng nhập mới...');
   try {
     const flow = await fetchJson(`/api/oauth/openai/start${refresh ? '?refresh=1' : ''}`, {
@@ -2153,17 +2179,23 @@ async function startOpenAIOAuthFlow(refresh=true){
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh }),
     });
+    setOAuthBusy('', false);
     renderOAuthRefreshModal(flow, flow.status_text || 'Đã tạo link OAuth mới.');
   } catch (error) {
+    setOAuthBusy('', false);
     renderOAuthRefreshModal(state.oauthRefresh || {}, `Lỗi tạo link OAuth: ${uiErrorText(error.message, 'Không tạo được link OAuth mới.')}`);
   }
 }
 
 async function loadOpenAIOAuthStatus(){
   try {
+    setOAuthBusy('status', true);
+    renderOAuthRefreshModal(state.oauthRefresh || {}, 'Đang kiểm tra trạng thái OAuth từ OpenClaw...');
     const flow = await fetchJson('/api/oauth/openai/status');
+    setOAuthBusy('', false);
     renderOAuthRefreshModal(flow, flow.status_text || 'Đã cập nhật trạng thái OAuth.');
   } catch (error) {
+    setOAuthBusy('', false);
     renderOAuthRefreshModal(state.oauthRefresh || {}, `Lỗi đọc trạng thái OAuth: ${uiErrorText(error.message, 'Không đọc được trạng thái OAuth.')}`);
   }
 }
@@ -2176,10 +2208,12 @@ function currentOpenAITokenFingerprint(){
 async function refreshOpenAITokenUntilChanged(previousFp, timeoutMs=12000){
   const deadline = Date.now() + Math.max(0, Number(timeoutMs) || 0);
   let lastTokens = null;
+  let lastToken = null;
   while (Date.now() < deadline) {
     const tokens = await fetchJson(`/api/tokens?_ts=${Date.now()}`);
     lastTokens = tokens;
     const current = (tokens || []).find(item => String(item.type || '').toLowerCase() === 'oauth' && /openai/i.test(String(item.provider || '')));
+    lastToken = current || null;
     const currentFp = String(current?.token_fp || '');
     if (currentFp && currentFp !== String(previousFp || '')) {
       state.data.tokens = tokens;
@@ -2196,7 +2230,7 @@ async function refreshOpenAITokenUntilChanged(previousFp, timeoutMs=12000){
   } else {
     await loadTokens(true);
   }
-  return { changed: false };
+  return { changed: false, token: lastToken };
 }
 
 async function submitOpenAIOAuthRedirect(){
@@ -2204,6 +2238,7 @@ async function submitOpenAIOAuthRedirect(){
   if (!redirectUrl) {
     return renderOAuthRefreshModal(state.oauthRefresh || {}, 'Thiếu localhost callback URL để cập nhật token.');
   }
+  setOAuthBusy('submit', true);
   renderOAuthRefreshModal(state.oauthRefresh || {}, 'Đang gửi callback URL vào OpenClaw để cập nhật token...');
   try {
     const previousFp = currentOpenAITokenFingerprint();
@@ -2217,13 +2252,15 @@ async function submitOpenAIOAuthRedirect(){
     const refreshed = await refreshOpenAITokenUntilChanged(previousFp, 12000);
     const sync = result.token_sync || {};
     const changed = Boolean(refreshed.changed || sync.changed);
+    setOAuthBusy('', false);
     renderOAuthRefreshModal(
       flow,
       changed
         ? 'OpenClaw đã ghi token mới và AQUA đã nạp lại card token.'
-        : 'OpenClaw đã nhận callback. AQUA đã reload token, nhưng fingerprint chưa đổi rõ ràng trong thời gian chờ.'
+        : `OpenClaw đã nhận callback, nhưng token lưu trong auth-profiles.json vẫn chưa đổi. AQUA đang thấy cùng fingerprint token cũ nên card vẫn giữ dữ liệu cũ. ${sync.profile_mtime ? `Mốc ghi profile gần nhất: ${formatUnixSeconds(sync.profile_mtime)}.` : ''}`
     );
   } catch (error) {
+    setOAuthBusy('', false);
     let detail = error.message;
     try {
       const parsed = JSON.parse(error.message);

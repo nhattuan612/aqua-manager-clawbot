@@ -2422,6 +2422,48 @@ function meter(pct, status){
   return `<div class="meter ${cls}"><span style="width:${Math.max(0, Math.min(100, pct))}%"></span></div>`;
 }
 
+function parseLocalDateTime(value){
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const normalized = raw.replace(' ', 'T');
+  const dt = new Date(normalized);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function quotaRiskBadgeClass(level){
+  const text = String(level || '').toLowerCase();
+  if (text.includes('đã chạm')) return 'b-status-expired';
+  if (text.includes('nguy cơ')) return 'b-status-warning';
+  if (text.includes('căng')) return 'b-priority-medium';
+  return 'b-status-online';
+}
+
+function cooldownQuotaInfo(item){
+  const isLocked = /limited/i.test(String(item.usage_state || item.status || ''));
+  if (!isLocked) return { isLocked: false, pct: null, remainingText: 'Chưa bị khoá', helper: 'Quota đang usable. Không có cooldown quota đang chạy.' };
+  const availableAt = parseLocalDateTime(item.available_at);
+  const detectedAt = parseLocalDateTime(item.limit_detected_at);
+  const retryMin = item.retry_after_min == null ? null : Number(item.retry_after_min);
+  if (!availableAt || retryMin == null || Number.isNaN(retryMin)) {
+    return { isLocked: true, pct: 0, remainingText: 'Đang khoá', helper: 'Chưa tính được thời gian mở khoá chính xác.' };
+  }
+  const now = new Date();
+  const totalMs = Math.max(retryMin * 60 * 1000, 1);
+  const remainingMs = Math.max(availableAt.getTime() - now.getTime(), 0);
+  const elapsedMs = Math.max(0, totalMs - remainingMs);
+  const pct = Math.max(0, Math.min(100, (elapsedMs / totalMs) * 100));
+  const remainingMin = Math.ceil(remainingMs / 60000);
+  const helper = remainingMs > 0
+    ? `Đang chờ mở quota. Còn khoảng ${remainingMin} phút để usable trở lại.`
+    : 'Cooldown đã hết. Có thể thử lại token này.';
+  return {
+    isLocked: true,
+    pct,
+    remainingText: remainingMs > 0 ? `Còn khoảng ${remainingMin} phút` : 'Có thể thử lại',
+    helper,
+  };
+}
+
 function normalizeProviderName(value){
   return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g,'');
 }
@@ -2430,6 +2472,7 @@ function tokenCard(item){
   const daysLeft = item.days_left == null ? 'Không giới hạn' : `${item.days_left} ngày`;
   const totalDays = item.total_days == null ? 'Không rõ tổng hạn' : `${item.total_days} ngày`;
   const hasUsageLimit = /limited/i.test(String(item.usage_state || ''));
+  const cooldown = cooldownQuotaInfo(item);
   const usageSummary = hasUsageLimit
     ? (item.retry_after_min != null ? `Thử lại sau khoảng ${item.retry_after_min} phút` : (item.usage_label || 'Đang bị giới hạn'))
     : (item.error_count ? `Có ${item.error_count} lỗi gần đây` : 'Chưa thấy giới hạn lượt dùng');
@@ -2448,6 +2491,9 @@ function tokenCard(item){
   const cycleBadgeClass = item.total_days == null ? 'b-kind' : 'b-priority-medium';
   const retryBadgeClass = hasUsageLimit ? 'b-status-warning' : 'b-status-online';
   const runtimeBadgeClass = item.usage_message ? (hasUsageLimit ? 'b-status-warning' : 'b-kind') : 'b-kind';
+  const quotaUsableBadge = hasUsageLimit
+    ? badge('Quota: 0% usable', 'b-status-expired')
+    : (item.quota_risk ? labeledBadge('Rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : badge('Quota: Chưa rõ', 'b-kind'));
   return `
     <div class="dense-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
       <div class="card-top">
@@ -2460,6 +2506,10 @@ function tokenCard(item){
           ${priorityBadge(item.priority)}
           ${hasUsageLimit ? badge('Quota: Đang khoá', 'b-status-warning') : badge('Quota: Bình thường', 'b-status-online')}
         </div>
+      </div>
+      <div class="tag-row" style="margin-bottom:6px;">
+        ${quotaUsableBadge}
+        ${!hasUsageLimit && item.quota_risk ? labeledBadge('Usable quota', 'Chưa có % thật', 'b-kind') : ''}
       </div>
       <div class="field-row">
         <div class="field-col"><div class="field-label">Mã nhận diện</div><div class="field-value mono truncate-1">${escapeHtml(item.info || '-')}</div></div>
@@ -2475,12 +2525,18 @@ function tokenCard(item){
         <div class="field-value tiny">${item.pct_left == null ? 'Token này không có dữ liệu thời hạn đầy đủ.' : `${item.pct_left}% thời gian còn lại`}</div>
       </div>
       <div class="field-col">
+        <div class="field-label">Cooldown quota</div>
+        ${cooldown.isLocked ? meter(cooldown.pct, cooldown.pct < 100 ? 'warning' : 'active') : '<div class="meter"><span style="width:100%"></span></div>'}
+        <div class="field-value tiny">${escapeHtml(cooldown.helper)}</div>
+      </div>
+      <div class="field-col">
         <div class="field-label">Thông tin quan trọng</div>
         <div class="tag-row" style="margin-top:4px;">
           ${labeledBadge('Còn lại', daysLeft, daysLeftBadgeClass)}
           ${labeledBadge('Chu kỳ tổng', totalDays, cycleBadgeClass)}
           ${labeledBadge('Hết hạn', item.expiry || 'Không có', expiryBadgeClass)}
           ${labeledBadge('Giới hạn dùng ChatGPT', usageSummary, retryBadgeClass)}
+          ${item.quota_risk ? labeledBadge('Mức rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : ''}
         </div>
       </div>
       <div class="field-row">
@@ -2493,6 +2549,7 @@ function tokenCard(item){
       </div>
       <div class="tag-row">
         ${labeledBadge('Có thể thử lại', item.available_at || 'Chưa bị khoá hoặc chưa xác định', retryBadgeClass)}
+        ${labeledBadge('Cooldown quota', cooldown.remainingText, retryBadgeClass)}
         ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
         ${labeledBadge('Email', item.email || '-', 'b-kind')}
       </div>

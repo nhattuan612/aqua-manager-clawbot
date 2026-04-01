@@ -441,6 +441,32 @@ def token_runtime_snapshot():
     return snapshot
 
 
+def quota_risk_profile(status, usage_state, error_count, last_failure_at):
+    """
+    OpenClaw does not expose a numeric ChatGPT team-plan quota percentage.
+    AQUA therefore publishes a clearly labeled heuristic risk level instead of
+    inventing fake percentages. Hard lock state still maps to 0% usable.
+    """
+    text = f"{status or ''} {usage_state or ''}".lower()
+    if "limited" in text:
+        return {"label": "Đã chạm", "class": "critical", "usable_pct": 0}
+    if int(error_count or 0) >= 3:
+        return {"label": "Nguy cơ", "class": "high", "usable_pct": None}
+    failure_dt = parse_iso_datetime(last_failure_at)
+    if failure_dt:
+        try:
+            age_hours = (datetime.datetime.now(failure_dt.tzinfo) - failure_dt).total_seconds() / 3600.0
+        except Exception:
+            age_hours = None
+        if age_hours is not None and age_hours <= 12:
+            return {"label": "Nguy cơ", "class": "high", "usable_pct": None}
+        if age_hours is not None and age_hours <= 36:
+            return {"label": "Căng", "class": "medium", "usable_pct": None}
+    if int(error_count or 0) >= 1:
+        return {"label": "Căng", "class": "medium", "usable_pct": None}
+    return {"label": "An toàn", "class": "low", "usable_pct": None}
+
+
 def git_remote(fp):
     cfg = os.path.join(fp, ".git", "config")
     if not os.path.exists(cfg):
@@ -1841,6 +1867,8 @@ def get_tokens():
                 if usage_state == "LIMITED" and provider_usage.get("is_active"):
                     status = "LIMITED"
                     priority = "critical"
+                last_failure_at = format_ts_ms(profile_usage.get("lastFailureAt"))
+                risk = quota_risk_profile(status, usage_state, int(profile_usage.get("errorCount") or 0), last_failure_at)
                 tokens.append(
                     {
                         "name": "ChatGPT OAuth (OpenAI)",
@@ -1863,8 +1891,11 @@ def get_tokens():
                         "available_at": provider_usage.get("available_at") or "",
                         "runtime_source": provider_usage.get("source") or "",
                         "last_used_at": format_ts_ms(profile_usage.get("lastUsed")),
-                        "last_failure_at": format_ts_ms(profile_usage.get("lastFailureAt")),
+                        "last_failure_at": last_failure_at,
                         "error_count": int(profile_usage.get("errorCount") or 0),
+                        "quota_risk": risk.get("label"),
+                        "quota_risk_class": risk.get("class"),
+                        "quota_usable_pct": risk.get("usable_pct"),
                     }
                 )
         except Exception:

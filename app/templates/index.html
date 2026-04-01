@@ -1173,14 +1173,22 @@ details.group-section > summary,details.log-row > summary{
   gap:6px;
 }
 .token-top-badges{
-  display:flex;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:6px;
+  width:100%;
 }
 .token-top-badges .badge{
-  min-height:28px;
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  min-height:30px;
   padding:5px 10px;
   font-size:10.5px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .token-top-badges .badge.token-badge-hero{
   min-height:32px;
@@ -1213,8 +1221,8 @@ details.group-section > summary,details.log-row > summary{
 }
 .token-card-grid{
   display:grid;
-  grid-template-columns:minmax(0,1.7fr) minmax(280px,.95fr);
-  gap:14px;
+  grid-template-columns:minmax(0,1fr);
+  gap:12px;
   align-items:start;
 }
 .token-main-col,.token-side-col{
@@ -1230,7 +1238,7 @@ details.group-section > summary,details.log-row > summary{
 }
 .token-kv-grid .meta-box{
   min-height:0;
-  padding:4px 6px;
+  padding:6px 12px;
 }
 .token-inline-note{
   margin-top:2px;
@@ -1239,18 +1247,54 @@ details.group-section > summary,details.log-row > summary{
   justify-content:flex-end;
 }
 .token-header-meta{
-  margin-top:2px;
+  margin-top:4px;
 }
 .token-emphasis-row{
-  display:flex;
-  flex-wrap:wrap;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
   gap:6px;
+  width:100%;
 }
 .token-emphasis-row .badge{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-width:0;
   min-height:30px;
   padding:6px 11px;
   font-size:10.8px;
   font-weight:800;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.token-info-row{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  width:100%;
+}
+.token-info-row .badge,
+.token-runtime-row .badge{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.token-runtime-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  gap:6px;
+  width:100%;
+}
+.token-meter-block{
+  width:100%;
+}
+.token-meter-block .meter{
+  width:100%;
 }
 .iframe-wrap{
   background:#1b2435!important;
@@ -1277,6 +1321,13 @@ details.group-section > summary,details.log-row > summary{
   }
   .token-kv-grid{
     grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .token-top-badges{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+  .token-info-row,
+  .token-emphasis-row{
+    grid-template-columns:1fr!important;
   }
   #skills_tables .card-grid-six{
     grid-template-columns:repeat(3,minmax(0,1fr))!important;
@@ -2788,24 +2839,27 @@ function tokenCard(item){
         </div>
         <div class="token-cta-col">
           ${oauthRefreshButton}
+          <div class="actions token-json-actions">
+            <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
+          </div>
         </div>
       </div>
       <div class="token-card-grid">
         <div class="token-main-col">
           <div class="field-col">
             <div class="field-label">Thông tin chính</div>
-            <div class="tag-row" style="margin-top:4px;">
+            <div class="token-info-row" style="margin-top:4px;">
               ${labeledBadge('Còn lại', daysLeft, daysLeftBadgeClass)}
               ${labeledBadge('Chu kỳ tổng', totalDays, cycleBadgeClass)}
               ${labeledBadge('Hết hạn', item.expiry || 'Không có', expiryBadgeClass)}
             </div>
           </div>
-          <div class="field-col">
+          <div class="field-col token-meter-block">
             <div class="field-label">Thanh đếm ngược ngày</div>
             ${meter(item.pct_left, item.status)}
             <div class="field-value tiny token-inline-note">${item.pct_left == null ? 'Token này không có dữ liệu thời hạn đầy đủ.' : `${item.pct_left}% thời gian còn lại`}</div>
           </div>
-          <div class="field-col">
+          <div class="field-col token-meter-block">
             <div class="field-label">Cooldown quota</div>
             ${cooldown.isLocked ? meter(cooldown.pct, cooldown.pct < 100 ? 'warning' : 'active') : '<div class="meter"><span style="width:100%"></span></div>'}
             <div class="field-value tiny token-inline-note">${escapeHtml(cooldown.helper)}</div>
@@ -2824,15 +2878,10 @@ function tokenCard(item){
           ${item.usage_message ? `
           <div class="field-col">
             <div class="field-label">Thông báo runtime</div>
-            <div class="tag-row" style="margin-top:4px;">
+            <div class="token-runtime-row" style="margin-top:4px;">
               ${labeledBadge('Thông báo runtime', truncateText(item.usage_message, 140), runtimeBadgeClass)}
             </div>
           </div>` : ''}
-        </div>
-        <div class="token-side-col">
-          <div class="actions token-json-actions">
-            <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
-          </div>
         </div>
       </div>
     </div>

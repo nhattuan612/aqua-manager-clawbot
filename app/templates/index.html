@@ -1152,6 +1152,73 @@ details.group-section > summary,details.log-row > summary{
 #tokens_table .card-grid-tight{
   grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important;
 }
+#tokens_table .card-grid-tight{
+  grid-template-columns:1fr!important;
+}
+#tokens_table .dense-card.token-oauth-card{
+  min-height:0!important;
+  gap:10px!important;
+  padding:12px 14px!important;
+}
+.token-card-top{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:12px;
+  align-items:start;
+}
+.token-head{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.token-top-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.token-cta-col{
+  min-width:220px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+}
+.oauth-refresh-cta{
+  min-height:42px;
+  padding:9px 14px!important;
+  font-size:12px!important;
+  font-weight:800!important;
+  border-radius:8px!important;
+  justify-content:center;
+  box-shadow:0 0 0 1px color-mix(in oklch,var(--primary) 20%, transparent 80%), 0 12px 26px rgba(15,23,42,.20);
+}
+.token-card-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1.7fr) minmax(280px,.95fr);
+  gap:14px;
+  align-items:start;
+}
+.token-main-col,.token-side-col{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.token-kv-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.token-kv-grid .meta-box{
+  min-height:0;
+}
+.token-inline-note{
+  margin-top:2px;
+}
+.token-json-actions{
+  justify-content:flex-end;
+}
 .iframe-wrap{
   background:#1b2435!important;
 }
@@ -1192,6 +1259,15 @@ details.group-section > summary,details.log-row > summary{
 @media (max-width:1180px){
   .tabs.top-tabs{
     padding:10px!important;
+  }
+  .token-card-top,
+  .token-card-grid,
+  .token-kv-grid{
+    grid-template-columns:1fr!important;
+  }
+  .token-cta-col{
+    min-width:0;
+    align-items:flex-start;
   }
   .tab-btn{
     min-width:0!important;
@@ -2613,6 +2689,15 @@ function normalizeProviderName(value){
   return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g,'');
 }
 
+function tokenMetaBox(label, value){
+  return `
+    <div class="meta-box">
+      <div class="k">${escapeHtml(label)}</div>
+      <div class="v truncate-1">${escapeHtml(value || '-')}</div>
+    </div>
+  `;
+}
+
 function tokenCard(item){
   const daysLeft = item.days_left == null ? 'Không giới hạn' : `${item.days_left} ngày`;
   const totalDays = item.total_days == null ? 'Không rõ tổng hạn' : `${item.total_days} ngày`;
@@ -2640,77 +2725,80 @@ function tokenCard(item){
     ? badge('Quota: 0% usable', 'b-status-expired')
     : (item.quota_risk ? labeledBadge('Rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : badge('Quota: Chưa rõ', 'b-kind'));
   const oauthRefreshButton = item.type === 'oauth' && /openai/i.test(String(item.provider || ''))
-    ? `<button class="mini-btn mini-primary" onclick="openOAuthRefreshModal()">🔐 Làm Mới OAuth Token</button>`
+    ? `<button class="btn btn-primary oauth-refresh-cta" onclick="openOAuthRefreshModal()">🔐 Làm Mới OAuth Token</button>`
     : '';
+  const topBadges = [
+    statusBadge(item.status),
+    priorityBadge(item.priority),
+    hasUsageLimit ? badge('Quota: Đang khoá', 'b-status-warning') : badge('Quota: Bình thường', 'b-status-online'),
+    quotaUsableBadge,
+  ];
+  if (!hasUsageLimit && item.quota_risk) topBadges.push(labeledBadge('Usable quota', 'Chưa có % thật', 'b-kind'));
   return `
-    <div class="dense-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
-      <div class="card-top">
-        <div class="field-col">
+    <div class="dense-card token-oauth-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
+      <div class="token-card-top">
+        <div class="token-head">
           <div class="card-title truncate-1">🔑 <span class="name-accent">${escapeHtml(item.name)}</span></div>
           <div class="card-sub truncate-1">${escapeHtml(item.provider || '-') } · ${escapeHtml(item.type || '-')}</div>
+          <div class="token-top-badges">
+            ${topBadges.join('')}
+          </div>
         </div>
-        <div class="actions">
+        <div class="token-cta-col">
           ${oauthRefreshButton}
-          ${statusBadge(item.status)}
-          ${priorityBadge(item.priority)}
-          ${hasUsageLimit ? badge('Quota: Đang khoá', 'b-status-warning') : badge('Quota: Bình thường', 'b-status-online')}
         </div>
       </div>
-      <div class="tag-row" style="margin-bottom:6px;">
-        ${quotaUsableBadge}
-        ${!hasUsageLimit && item.quota_risk ? labeledBadge('Usable quota', 'Chưa có % thật', 'b-kind') : ''}
-      </div>
-      <div class="field-row">
-        <div class="field-col"><div class="field-label">Mã nhận diện</div><div class="field-value mono truncate-1">${escapeHtml(item.info || '-')}</div></div>
-        <div class="field-col"><div class="field-label">Hết hạn</div><div class="field-value truncate-1">${escapeHtml(item.expiry || 'Không có')}</div></div>
-      </div>
-      <div class="field-row">
-        <div class="field-col"><div class="field-label">Còn lại</div><div class="field-value">${escapeHtml(daysLeft)}</div></div>
-        <div class="field-col"><div class="field-label">Chu kỳ tổng</div><div class="field-value">${escapeHtml(totalDays)}</div></div>
-      </div>
-      <div class="field-col">
-        <div class="field-label">Thanh đếm ngược</div>
-        ${meter(item.pct_left, item.status)}
-        <div class="field-value tiny">${item.pct_left == null ? 'Token này không có dữ liệu thời hạn đầy đủ.' : `${item.pct_left}% thời gian còn lại`}</div>
-      </div>
-      <div class="field-col">
-        <div class="field-label">Cooldown quota</div>
-        ${cooldown.isLocked ? meter(cooldown.pct, cooldown.pct < 100 ? 'warning' : 'active') : '<div class="meter"><span style="width:100%"></span></div>'}
-        <div class="field-value tiny">${escapeHtml(cooldown.helper)}</div>
-      </div>
-      <div class="field-col">
-        <div class="field-label">Thông tin quan trọng</div>
-        <div class="tag-row" style="margin-top:4px;">
-          ${labeledBadge('Còn lại', daysLeft, daysLeftBadgeClass)}
-          ${labeledBadge('Chu kỳ tổng', totalDays, cycleBadgeClass)}
-          ${labeledBadge('Hết hạn', item.expiry || 'Không có', expiryBadgeClass)}
-          ${labeledBadge('Giới hạn dùng ChatGPT', usageSummary, retryBadgeClass)}
-          ${item.quota_risk ? labeledBadge('Mức rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : ''}
+      <div class="token-card-grid">
+        <div class="token-main-col">
+          <div class="field-col">
+            <div class="field-label">Thông tin chính</div>
+            <div class="tag-row" style="margin-top:4px;">
+              ${labeledBadge('Tài khoản', item.info || '-', 'b-kind')}
+              ${labeledBadge('Còn lại', daysLeft, daysLeftBadgeClass)}
+              ${labeledBadge('Chu kỳ tổng', totalDays, cycleBadgeClass)}
+              ${labeledBadge('Hết hạn', item.expiry || 'Không có', expiryBadgeClass)}
+              ${labeledBadge('Có thể thử lại', item.available_at || 'Chưa bị khoá hoặc chưa xác định', retryBadgeClass)}
+              ${labeledBadge('Cooldown quota', cooldown.remainingText, retryBadgeClass)}
+            </div>
+          </div>
+          <div class="field-col">
+            <div class="field-label">Thanh đếm ngược ngày</div>
+            ${meter(item.pct_left, item.status)}
+            <div class="field-value tiny token-inline-note">${item.pct_left == null ? 'Token này không có dữ liệu thời hạn đầy đủ.' : `${item.pct_left}% thời gian còn lại`}</div>
+          </div>
+          <div class="field-col">
+            <div class="field-label">Cooldown quota</div>
+            ${cooldown.isLocked ? meter(cooldown.pct, cooldown.pct < 100 ? 'warning' : 'active') : '<div class="meter"><span style="width:100%"></span></div>'}
+            <div class="field-value tiny token-inline-note">${escapeHtml(cooldown.helper)}</div>
+          </div>
+          <div class="field-col">
+            <div class="field-label">Trạng thái quota</div>
+            <div class="tag-row" style="margin-top:4px;">
+              ${labeledBadge('Giới hạn dùng ChatGPT', usageSummary, retryBadgeClass)}
+              ${item.quota_risk ? labeledBadge('Mức rủi ro quota', item.quota_risk, quotaRiskBadgeClass(item.quota_risk)) : ''}
+              ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
+            </div>
+          </div>
+          ${item.usage_message ? `
+          <div class="field-col">
+            <div class="field-label">Thông báo runtime</div>
+            <div class="tag-row" style="margin-top:4px;">
+              ${labeledBadge('Thông báo runtime', truncateText(item.usage_message, 140), runtimeBadgeClass)}
+            </div>
+          </div>` : ''}
         </div>
-      </div>
-      <div class="field-row">
-        <div class="field-col"><div class="field-label">Cấp</div><div class="field-value">${escapeHtml(item.provider || '-')}</div></div>
-        <div class="field-col"><div class="field-label">Khởi tạo</div><div class="field-value truncate-1">${escapeHtml(item.issued_at || 'Không rõ')}</div></div>
-      </div>
-      <div class="field-row">
-        <div class="field-col"><div class="field-label">Lần dùng gần nhất</div><div class="field-value truncate-1">${escapeHtml(item.last_used_at || 'Không rõ')}</div></div>
-        <div class="field-col"><div class="field-label">Lần lỗi gần nhất</div><div class="field-value truncate-1">${escapeHtml(item.last_failure_at || 'Không rõ')}</div></div>
-      </div>
-      <div class="tag-row">
-        ${labeledBadge('Có thể thử lại', item.available_at || 'Chưa bị khoá hoặc chưa xác định', retryBadgeClass)}
-        ${labeledBadge('Cooldown quota', cooldown.remainingText, retryBadgeClass)}
-        ${labeledBadge('Nguồn phát hiện', item.runtime_source || 'auth-profiles', runtimeBadgeClass)}
-        ${labeledBadge('Email', item.email || '-', 'b-kind')}
-      </div>
-      ${item.usage_message ? `
-      <div class="field-col">
-        <div class="field-label">Thông báo runtime</div>
-        <div class="tag-row" style="margin-top:4px;">
-          ${labeledBadge('Thông báo runtime', truncateText(item.usage_message, 140), runtimeBadgeClass)}
+        <div class="token-side-col">
+          <div class="field-label">Mốc thời gian và nhận diện</div>
+          <div class="token-kv-grid">
+            ${tokenMetaBox('Email', item.email || item.info || '-')}
+            ${tokenMetaBox('Khởi tạo', item.issued_at || 'Không rõ')}
+            ${tokenMetaBox('Lần dùng gần nhất', item.last_used_at || 'Không rõ')}
+            ${tokenMetaBox('Lần lỗi gần nhất', item.last_failure_at || 'Không rõ')}
+          </div>
+          <div class="actions token-json-actions">
+            <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
+          </div>
         </div>
-      </div>` : ''}
-      <div class="actions">
-        <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
       </div>
     </div>
   `;

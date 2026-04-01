@@ -1161,6 +1161,11 @@ details.group-section > summary,details.log-row > summary{
   padding:12px 14px!important;
 }
 .token-card-top{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.token-title-row{
   display:grid;
   grid-template-columns:minmax(0,1fr) auto;
   gap:12px;
@@ -1170,7 +1175,7 @@ details.group-section > summary,details.log-row > summary{
   min-width:0;
   display:flex;
   flex-direction:column;
-  gap:6px;
+  gap:4px;
 }
 .token-top-badges{
   display:grid;
@@ -1347,6 +1352,7 @@ details.group-section > summary,details.log-row > summary{
   .tabs.top-tabs{
     padding:10px!important;
   }
+  .token-title-row,
   .token-card-top,
   .token-card-grid,
   .token-kv-grid{
@@ -2824,24 +2830,26 @@ function tokenCard(item){
   return `
     <div class="dense-card token-oauth-card ${toneClass('token', item.provider, item.status)} searchable-item" data-search="${escapeHtml(searchBlob(item))}">
       <div class="token-card-top">
-        <div class="token-head">
-          <div class="card-title truncate-1">🔑 <span class="name-accent">${escapeHtml(item.name)}</span></div>
-          <div class="card-sub truncate-1">${escapeHtml(item.provider || '-') } · ${escapeHtml(item.type || '-')}</div>
-          <div class="token-top-badges">
-            ${topBadges.join('')}
+        <div class="token-title-row">
+          <div class="token-head">
+            <div class="card-title truncate-1">🔑 <span class="name-accent">${escapeHtml(item.name)}</span></div>
+            <div class="card-sub truncate-1">${escapeHtml(item.provider || '-') } · ${escapeHtml(item.type || '-')}</div>
           </div>
-          <div class="token-kv-grid token-header-meta">
-            ${tokenMetaBox('Email', item.email || item.info || '-')}
-            ${tokenMetaBox('Khởi tạo', item.issued_at || 'Không rõ')}
-            ${tokenMetaBox('Lần dùng gần nhất', item.last_used_at || 'Không rõ')}
-            ${tokenMetaBox('Lần lỗi gần nhất', item.last_failure_at || 'Không rõ')}
+          <div class="token-cta-col">
+            ${oauthRefreshButton}
+            <div class="actions token-json-actions">
+              <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
+            </div>
           </div>
         </div>
-        <div class="token-cta-col">
-          ${oauthRefreshButton}
-          <div class="actions token-json-actions">
-            <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
-          </div>
+        <div class="token-top-badges">
+          ${topBadges.join('')}
+        </div>
+        <div class="token-kv-grid token-header-meta">
+          ${tokenMetaBox('Email', item.email || item.info || '-')}
+          ${tokenMetaBox('Khởi tạo', item.issued_at || 'Không rõ')}
+          ${tokenMetaBox('Lần dùng gần nhất', item.last_used_at || 'Không rõ')}
+          ${tokenMetaBox('Lần lỗi gần nhất', item.last_failure_at || 'Không rõ')}
         </div>
       </div>
       <div class="token-card-grid">

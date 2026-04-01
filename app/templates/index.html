@@ -1238,6 +1238,9 @@ details.group-section > summary,details.log-row > summary{
 .token-json-actions{
   justify-content:flex-end;
 }
+.token-header-meta{
+  margin-top:2px;
+}
 .token-emphasis-row{
   display:flex;
   flex-wrap:wrap;
@@ -2776,6 +2779,12 @@ function tokenCard(item){
           <div class="token-top-badges">
             ${topBadges.join('')}
           </div>
+          <div class="token-kv-grid token-header-meta">
+            ${tokenMetaBox('Email', item.email || item.info || '-')}
+            ${tokenMetaBox('Khởi tạo', item.issued_at || 'Không rõ')}
+            ${tokenMetaBox('Lần dùng gần nhất', item.last_used_at || 'Không rõ')}
+            ${tokenMetaBox('Lần lỗi gần nhất', item.last_failure_at || 'Không rõ')}
+          </div>
         </div>
         <div class="token-cta-col">
           ${oauthRefreshButton}
@@ -2821,13 +2830,6 @@ function tokenCard(item){
           </div>` : ''}
         </div>
         <div class="token-side-col">
-          <div class="field-label">Mốc thời gian và nhận diện</div>
-          <div class="token-kv-grid">
-            ${tokenMetaBox('Email', item.email || item.info || '-')}
-            ${tokenMetaBox('Khởi tạo', item.issued_at || 'Không rõ')}
-            ${tokenMetaBox('Lần dùng gần nhất', item.last_used_at || 'Không rõ')}
-            ${tokenMetaBox('Lần lỗi gần nhất', item.last_failure_at || 'Không rõ')}
-          </div>
           <div class="actions token-json-actions">
             <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
           </div>

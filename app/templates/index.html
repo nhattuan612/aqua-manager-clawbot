@@ -1211,8 +1211,9 @@ details.group-section > summary,details.log-row > summary{
 .token-cta-col{
   min-width:220px;
   display:flex;
-  flex-direction:column;
+  flex-direction:row;
   align-items:flex-end;
+  justify-content:flex-end;
   gap:8px;
 }
 .oauth-refresh-cta{
@@ -1361,6 +1362,7 @@ details.group-section > summary,details.log-row > summary{
   .token-cta-col{
     min-width:0;
     align-items:flex-start;
+    flex-wrap:wrap;
   }
   .tab-btn{
     min-width:0!important;
@@ -2836,10 +2838,10 @@ function tokenCard(item){
             <div class="card-sub truncate-1">${escapeHtml(item.provider || '-') } · ${escapeHtml(item.type || '-')}</div>
           </div>
           <div class="token-cta-col">
-            ${oauthRefreshButton}
             <div class="actions token-json-actions">
               <button class="mini-btn" onclick="viewRawObject('Token', '${encodeObj(item)}')">JSON</button>
             </div>
+            ${oauthRefreshButton}
           </div>
         </div>
         <div class="token-top-badges">
